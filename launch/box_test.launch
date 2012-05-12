@@ -1,0 +1,15 @@
+<launch>
+    
+    <arg name="arm_to_use" value="right" />
+    <arg name="num_test_iterations" value="1" />
+
+    <include file="$(find lightning)/launch/rviz_display.launch">
+    </include>
+
+    <include file="$(find lightning)/launch/lightning.launch">
+    </include>
+
+    <node name="run_test" pkg="lightning" type="LightningTest.py" args="box $(arg arm_to_use) $(arg num_test_iterations)" output="screen">
+    </node>
+
+</launch>

@@ -1,0 +1,6 @@
+## from pr2_arm_navigation_planning
+## the list of groups for which motion planning can be performed on both arms
+groups: 
+  - right_arm 
+  - left_arm 
+

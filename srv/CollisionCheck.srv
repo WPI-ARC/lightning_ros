@@ -1,0 +1,8 @@
+string group_name
+
+#list of positions; this is the points in the path; each point is in a ListContainer
+Float64Array2D[] paths
+---
+#list of invalid sections of path; gives a list of pairs [start, end] that specify the start and end of invalid sections of the give path
+IntArray2D[] invalid_sections
+Status status

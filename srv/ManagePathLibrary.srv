@@ -1,0 +1,22 @@
+#these determine the path library
+string robot_name
+string[] joint_names
+
+uint8 action
+uint8 ACTION_STORE=1
+uint8 ACTION_DELETE_PATH=2
+uint8 ACTION_DELETE_LIBRARY=3
+
+#specify this if a path is being added
+trajectory_msgs/JointTrajectoryPoint[] path_to_store
+trajectory_msgs/JointTrajectoryPoint[] retrieved_path
+
+#specify this is a path is to be deleted
+int32 delete_id
+
+---
+uint8 result
+uint8 FAILURE=0
+uint8 SUCCESS=1
+
+string message

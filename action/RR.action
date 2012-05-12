@@ -1,0 +1,9 @@
+float64[] start
+float64[] goal
+string[] joint_names
+string group_name
+---
+Float64Array[] retrieved_path
+Float64Array[] repaired_path
+Status status
+---

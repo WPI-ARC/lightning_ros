@@ -1,0 +1,5 @@
+string group_name
+Float64Array[] path
+---
+Float64Array[] new_path
+Status status

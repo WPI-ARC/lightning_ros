@@ -1,0 +1,2 @@
+IntArray[] points
+
