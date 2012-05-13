@@ -54,9 +54,8 @@ class CollisionCheckService {
         CollisionCheckService()
             : private_handle_("~")
         {
-            handle_.param<double>("step_size", step_size_, 0.05);
-            private_handle_.param<int>("num_threads", num_threads_, 1);
-            private_handle_.param<bool>("use_middle_checking", use_middle_checking_, false);
+            handle_.getParam("step_size", step_size_);
+            private_handle_.getParam("num_threads", num_threads_, 1);
             collision_checker_ = new CollisionChecker(step_size_);
             for (int i = 0; i < num_threads_-1; i++) {
                 collision_models_.push_back(new planning_environment::CollisionModels("robot_description"));
@@ -154,7 +153,6 @@ class CollisionCheckService {
         ros::ServiceServer service_;
         double step_size_;
         int num_threads_;
-        bool use_middle_checking_;
         std::vector< std::vector< std::vector<int> > > all_invalid_sections_;
         boost::mutex invalid_sections_lock_;
         std::vector<planning_environment::CollisionModels*> collision_models_;

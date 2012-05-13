@@ -6,11 +6,7 @@
     <param name="allowed_planning_time" value="20.0" />
 
     <node name="collision_check_service" pkg="lightning" type="collision_check_service" output="screen">
-        <param name="use_middle_checking" value="false" />
         <param name="num_threads" value="4" />
-        <param name="store_paths" value="true" />
-        <param name="use_RR" value="true" />
-        <param name="use_PFS" value="true" />
     </node>
 
     <node name="path_shortcutter_service" pkg="lightning" type="path_shortcutter" output="screen">
@@ -34,6 +30,9 @@
     </node>
 
     <node name="lightning" pkg="lightning" type="lightning.py" output="screen">
+        <param name="store_paths" value="true" />
+        <param name="use_RR" value="true" />
+        <param name="use_PFS" value="true" />
     </node>
 
 </launch>
