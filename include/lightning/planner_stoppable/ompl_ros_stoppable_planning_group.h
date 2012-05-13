@@ -34,6 +34,14 @@
 
 /** \author Sachin Chitta, Ioan Sucan */
 
+/* This is a modification of ompl_ros_planning_group.h from the ompl_ros_interface
+ * package created by the above organization/author.
+ *
+ * The modification was made by Authors: Cameron Lee (cameronlee@berkeley.edu) 
+ * and Dmitry Berenson (berenson@eecs.berkeley.edu)
+ * 2012, University of California, Berkeley
+*/
+
 #ifndef OMPL_ROS_STOPPABLE_PLANNING_GROUP_H_
 #define OMPL_ROS_STOPPABLE_PLANNING_GROUP_H_
 

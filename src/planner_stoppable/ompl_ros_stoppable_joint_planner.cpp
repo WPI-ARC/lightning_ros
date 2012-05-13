@@ -34,6 +34,14 @@
 
 /** \author Sachin Chitta, Ioan Sucan */
 
+/* This is a modification of ompl_ros_joint_planner.cpp from the ompl_ros_interface
+ * package created by the above organization/author.
+ *
+ * The modification was made by Authors: Cameron Lee (cameronlee@berkeley.edu) 
+ * and Dmitry Berenson (berenson@eecs.berkeley.edu)
+ * 2012, University of California, Berkeley
+*/
+
 #include <lightning/planner_stoppable/ompl_ros_stoppable_joint_planner.h>
 
 bool OmplRosStoppableJointPlanner::initializePlanningStateSpace(ompl::base::StateSpacePtr &state_space)

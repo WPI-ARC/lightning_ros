@@ -34,6 +34,14 @@
 
 /** \author Sachin Chitta*/
 
+/* This is a modification of ompl_ros.h from the ompl_ros_interface
+ * package created by the above organization/author.
+ *
+ * The modification was made by Authors: Cameron Lee (cameronlee@berkeley.edu) 
+ * and Dmitry Berenson (berenson@eecs.berkeley.edu)
+ * 2012, University of California, Berkeley
+*/
+
 #ifndef OMPL_ROS_STOPPABLE_H_
 #define OMPL_ROS_STOPPABLE_H_
 

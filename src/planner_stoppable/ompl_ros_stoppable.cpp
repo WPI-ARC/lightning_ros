@@ -34,10 +34,16 @@
 
 /** \author Sachin Chitta, Ioan Sucan */
 
+/* This is a modification of ompl_ros.cpp from the ompl_ros_interface
+ * package created by the above organization/author.
+ *
+ * The modification was made by Authors: Cameron Lee (cameronlee@berkeley.edu) 
+ * and Dmitry Berenson (berenson@eecs.berkeley.edu)
+ * 2012, University of California, Berkeley
+*/
+
 #include <lightning/planner_stoppable/ompl_ros_stoppable.h>
 #include <sstream>
-
-/* THIS CLASS IS VERY SIMILAR TO OMPL_ROS. THE DIFFERENCE IS THAT THIS CLASS USES A PLANNER THAT CAN BE TERMINATED. */
 
 OmplRosStoppable::OmplRosStoppable(void): private_nh_("~")
 {
