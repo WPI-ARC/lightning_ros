@@ -66,7 +66,7 @@ class RRNode:
         self.currentGroupName = ""
         self.planTrajectoryWrapper = PlanTrajectoryWrapper("rr", int(rospy.get_param("~num_rr_planners")))
         self.invalidSectionWrapper = InvalidSectionWrapper()
-        self.pathLibrary = PathLibrary(rospy.get_param("path_library_dir"), rospy.get_param("step_size"), nodeSize=int(rospy.get_param("~path_library_path_node_size")), sgNodeSize=int(rospy.get_param("~path_library_sg_node_size")), dtwDist=float(rospy.get_param("dtw_distance")))
+        self.pathLibrary = PathLibrary(rospy.get_param("~path_library_dir"), rospy.get_param("step_size"), nodeSize=int(rospy.get_param("~path_library_path_node_size")), sgNodeSize=int(rospy.get_param("~path_library_sg_node_size")), dtwDist=float(rospy.get_param("~dtw_distance")))
         self.numPathsChecked = int(rospy.get_param("~num_paths_to_collision_check"))
         self.stopLock = threading.Lock()
         self.stop = True

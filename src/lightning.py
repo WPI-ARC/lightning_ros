@@ -63,9 +63,9 @@ class Lightning:
         self.RRClient = actionlib.SimpleActionClient(RR_NODE_NAME, RRAction)
         self.PFSClient = actionlib.SimpleActionClient(PFS_NODE_NAME, PFSAction)
         self.manageLibraryClient = rospy.ServiceProxy(MANAGE_LIBRARY, ManagePathLibrary)
-        self.storePaths = rospy.get_param("store_paths")
-        self.useRR = rospy.get_param("use_RR")
-        self.usePFS = rospy.get_param("use_PFS")
+        self.storePaths = rospy.get_param("~store_paths")
+        self.useRR = rospy.get_param("~use_RR")
+        self.usePFS = rospy.get_param("~use_PFS")
         if not self.useRR and not self.usePFS:
             rospy.logerr("Lightning: at least one of use_RR and use_PFS need to be true")
         self.shortcutPathWrapper = ShortcutPathWrapper()
