@@ -1,36 +1,36 @@
 /*********************************************************************
- * Software License Agreement (BSD License)
- *
- *  Copyright (c) 2008, Willow Garage, Inc.
- *  All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions
- *  are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following
- *     disclaimer in the documentation and/or other materials provided
- *     with the distribution.
- *   * Neither the name of Willow Garage, Inc. nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- *  POSSIBILITY OF SUCH DAMAGE.
- *********************************************************************/
+* Software License Agreement (BSD License)
+*
+*  Copyright (c) 2008, Willow Garage, Inc.
+*  All rights reserved.
+*
+*  Redistribution and use in source and binary forms, with or without
+*  modification, are permitted provided that the following conditions
+*  are met:
+*
+*   * Redistributions of source code must retain the above copyright
+*     notice, this list of conditions and the following disclaimer.
+*   * Redistributions in binary form must reproduce the above
+*     copyright notice, this list of conditions and the following
+*     disclaimer in the documentation and/or other materials provided
+*     with the distribution.
+*   * Neither the name of Willow Garage, Inc. nor the names of its
+*     contributors may be used to endorse or promote products derived
+*     from this software without specific prior written permission.
+*
+*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+*  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+*  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+*  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+*  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+*  POSSIBILITY OF SUCH DAMAGE.
+*********************************************************************/
 
 /** \author Sachin Chitta, Ioan Sucan */
 
@@ -40,7 +40,7 @@
  * The modification was made by Authors: Cameron Lee (cameronlee@berkeley.edu) 
  * and Dmitry Berenson (berenson@eecs.berkeley.edu)
  * 2012, University of California, Berkeley
- */
+*/
 
 #include "lightning/planner_stoppable/ompl_ros_stoppable_planning_group.h"
 #include <planning_environment/models/model_utils.h>
@@ -50,6 +50,7 @@ bool OmplRosStoppablePlanningGroup::initialize(const ros::NodeHandle &node_handl
         const std::string &planner_config_name,
         planning_environment::CollisionModelsInterface *cmi)
 {
+
     collision_models_interface_    = cmi;
     group_name_          = group_name;
     node_handle_         = node_handle;
@@ -76,7 +77,8 @@ bool OmplRosStoppablePlanningGroup::initialize(const ros::NodeHandle &node_handl
         return false;
     }
 
-    planner_.reset(new ompl::geometric::SimpleSetup(state_space_));
+    //addition
+    planner_.reset(new SimpleSetupStoppable(state_space_));
 
     if(!initializePlanner())
         return false;
@@ -158,15 +160,15 @@ bool OmplRosStoppablePlanningGroup::initializePlanner()
         return initializeSBLPlanner();
     else if(planner_type == "kinematic::pSBL")
         return initializepSBLPlanner();
-    else if(planner_type == "kinematic::KPIECE")
+    else if(planner_type == "kinematic::KPIECE") {
         return initializeKPIECEPlanner();
-    else if(planner_type == "kinematic::LBKPIECE")
+    } else if(planner_type == "kinematic::LBKPIECE")
         return initializeLBKPIECEPlanner();
     else if(planner_type == "kinematic::RRTStar")
         return initializeRRTStarPlanner();
-    else if(planner_type == "kinematic::BKPIECE")
+    else if(planner_type == "kinematic::BKPIECE") {
         return initializeBKPIECEPlanner();
-    else
+    } else
     {
         ROS_WARN("Unknown planner type: %s", planner_type.c_str());
         return false;
@@ -333,11 +335,11 @@ bool OmplRosStoppablePlanningGroup::initializeKPIECEPlanner()
         new_planner->setMinValidPathFraction(planner_config_->getParamDouble("min_valid_path_fraction",new_planner->getMinValidPathFraction()));
         ROS_DEBUG("KPIECEPlanner::Min valid path fraction is set to %g", new_planner->getMinValidPathFraction());
     }  
-    if (planner_config_->hasParam("failed_expansion_cell_score_factor"))
+    if (planner_config_->hasParam("good_cell_score_factor") && planner_config_->hasParam("bad_cell_score_factor"))
     {
-        new_planner->setFailedExpansionCellScoreFactor(planner_config_->getParamDouble("failed_expansion_cell_score_factor",
-                    new_planner->getFailedExpansionCellScoreFactor()));
-        ROS_DEBUG("KPIECEPlanner:: Filed expansion cell score factor is %g", new_planner->getFailedExpansionCellScoreFactor());
+        new_planner->setCellScoreFactor(planner_config_->getParamDouble("cell_score_factor",new_planner->getBorderFraction()),
+                planner_config_->getParamDouble("good_cell_score_factor",new_planner->getBorderFraction()));
+        ROS_DEBUG("KPIECEPlanner::Border score factor is set to (good,bad):(%g,%g)", new_planner->getGoodCellScoreFactor(),new_planner->getBadCellScoreFactor());
     }  
     return true;
 }
@@ -356,11 +358,11 @@ bool OmplRosStoppablePlanningGroup::initializeBKPIECEPlanner()
         new_planner->setBorderFraction(planner_config_->getParamDouble("border_fraction",new_planner->getBorderFraction()));
         ROS_DEBUG("BKPIECEPlanner::Range is set to %g", new_planner->getBorderFraction());
     }  
-    if (planner_config_->hasParam("failed_expansion_cell_score_factor"))
+    if (planner_config_->hasParam("good_cell_score_factor") && planner_config_->hasParam("bad_cell_score_factor"))
     {
-        new_planner->setFailedExpansionCellScoreFactor(planner_config_->getParamDouble("failed_expansion_cell_score_factor",
-                    new_planner->getFailedExpansionCellScoreFactor()));
-        ROS_DEBUG("KPIECEPlanner:: Filed expansion cell score factor is %g", new_planner->getFailedExpansionCellScoreFactor());
+        new_planner->setCellScoreFactor(planner_config_->getParamDouble("cell_score_factor",new_planner->getBorderFraction()),
+                planner_config_->getParamDouble("good_cell_score_factor",new_planner->getBorderFraction()));
+        ROS_DEBUG("BKPIECEPlanner::Border score factor is set to (good,bad):(%g,%g)", new_planner->getGoodCellScoreFactor(),new_planner->getBadCellScoreFactor());
     }  
     if (planner_config_->hasParam("min_valid_path_fraction"))
     {
@@ -460,7 +462,93 @@ bool OmplRosStoppablePlanningGroup::computePlan(arm_navigation_msgs::GetMotionPl
 
     //addition
     current_termination_condition_ = ompl::base::timedPlannerTerminationCondition(request.motion_plan_request.allowed_planning_time.toSec());
+
     bool solved = planner_->solve(current_termination_condition_);
+
+    //for displaying RRT search space
+    if (draw_points_) {
+        const ompl::base::PlannerData &pd = planner_->getPlannerData();
+        ompl_ros_interface::OmplStateToKinematicStateMapping *ostrsm = get_ompl_state_to_kinematic_state_mapping();
+        if (ostrsm != NULL && (group_name_[0] == 'r' or group_name_[0] == 'l')) {
+            planning_models::KinematicState *kstate(collision_models_interface_->getPlanningSceneState());
+            std::vector<double> point(3);
+            lightning::DrawPoints draw_start, draw_goal;
+            lightning::Float64Array ar;
+            draw_start.model_group_name = group_name_;
+            draw_goal.model_group_name = group_name_;
+            for (std::size_t i = 0; i < pd.states.size(); i++) {
+                omplStateToKinematicStateGroup(pd.states[i], *ostrsm, kstate->getJointStateGroup(physical_joint_group_->getName()));
+                //omplStateToKinematicStateGroup(pd.states[i], *ostrsm, physical_joint_state_group_);
+                kstate->getJointStateGroup(physical_joint_state_group_->getName())->updateKinematicLinks();
+                btTransform bt;
+                if (group_name_[0] == 'r') { //right arm
+                    bt = kstate->getLinkState("r_wrist_roll_link")->getGlobalLinkTransform();
+                } else { //left arm
+                    bt = kstate->getLinkState("l_wrist_roll_link")->getGlobalLinkTransform();
+                } 
+                btVector3 trans = bt.getOrigin();
+                //ROS_INFO("Stoppable planning group, x: %f, y: %f, z: %f", trans.getX(), trans.getY(), trans.getZ());
+                point[0] = trans.getX();
+                point[1] = trans.getY();
+                point[2] = trans.getZ();
+                ar.values = point;
+                draw_start.points.push_back(ar);
+                draw_goal.points.push_back(ar);
+            }
+            draw_start.point_group_name = node_handle_.getNamespace()+"_tree_start";
+            draw_start.point_type = draw_start.POINT_TYPE_POSES;
+            draw_start.display_density = 1.0;
+            draw_goal.point_group_name = node_handle_.getNamespace()+"_tree_goal";
+            draw_goal.point_type = draw_goal.POINT_TYPE_POSES;
+            draw_goal.display_density = 1.0;
+            if (node_handle_.getNamespace().find("rr") != std::string::npos) {
+                draw_start.red = 1.0;
+                draw_start.green = 1.0;
+                draw_start.blue = 0.0;
+                draw_goal.red = 0.0;
+                draw_goal.green = 1.0;
+                draw_goal.blue = 0.0;
+            } else if (node_handle_.getNamespace().find("pfs") != std::string::npos) {
+                draw_start.red = 1.0;
+                draw_start.green = 0.0;
+                draw_start.blue = 1.0;
+                draw_goal.red = 1.0;
+                draw_goal.green = 0.0;
+                draw_goal.blue = 0.0;
+            } else {
+                ROS_INFO("Stoppable planning group: not looking at pfs or rr data");
+                draw_start.red = 1.0;
+                draw_start.green = 1.0;
+                draw_start.blue = 1.0;
+                draw_goal.red = 1.0;
+                draw_goal.green = 1.0;
+                draw_goal.blue = 1.0;
+            }
+            draw_start.action = draw_start.ACTION_ADD;
+            draw_start.point_radius = 0.00;
+            draw_goal.action = draw_goal.ACTION_ADD;
+            draw_goal.point_radius = 0.00;
+
+            lightning::IntArray endPoints, emptyEndPoints;
+            for (std::size_t i = 0; i < pd.edges.size(); i++) {
+                endPoints.values.clear();
+                for (std::size_t j = 0; j < pd.edges[i].size(); j++) {
+                    endPoints.values.push_back(pd.edges[i][j]);
+                }
+                if (pd.tags[i] == 1) {
+                    draw_start.edges.push_back(endPoints);
+                    draw_goal.edges.push_back(emptyEndPoints);
+                } else if (pd.tags[i] == 2) {
+                    draw_goal.edges.push_back(endPoints);
+                    draw_start.edges.push_back(emptyEndPoints);
+                }
+            }
+            ROS_INFO("Stoppable planning group: sending %u points for start display", (unsigned int)draw_start.points.size());
+            ROS_INFO("Stoppable planning group: sending %u points for goal display", (unsigned int)draw_goal.points.size());
+            draw_publisher_.publish(draw_start);
+            draw_publisher_.publish(draw_goal);
+        }
+    }
 
     if(solved)
     {
@@ -468,7 +556,7 @@ bool OmplRosStoppablePlanningGroup::computePlan(arm_navigation_msgs::GetMotionPl
         response.planning_time = ros::Duration(planner_->getLastPlanComputationTime());
         planner_->getPathSimplifier()->reduceVertices(planner_->getSolutionPath());
         planner_->getPathSimplifier()->collapseCloseVertices(planner_->getSolutionPath());
-
+        
         try
         {
             response.trajectory = getSolutionPath();

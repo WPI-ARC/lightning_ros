@@ -55,7 +55,7 @@ class CollisionCheckService {
             : private_handle_("~")
         {
             handle_.getParam("step_size", step_size_);
-            private_handle_.getParam("num_threads", num_threads_, 1);
+            private_handle_.getParam("num_threads", num_threads_);
             collision_checker_ = new CollisionChecker(step_size_);
             for (int i = 0; i < num_threads_-1; i++) {
                 collision_models_.push_back(new planning_environment::CollisionModels("robot_description"));

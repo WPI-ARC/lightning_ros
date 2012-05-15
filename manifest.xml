@@ -14,7 +14,7 @@
   <depend package="trajectory_msgs"/>
   <depend package="planning_environment"/>
   <depend package="planning_models"/>
-  <depend package="ompl"/>
+  <!--<depend package="ompl"/>-->
   <depend package="ompl_ros_interface"/>
   <depend package="gazebo_msgs"/>
   <depend package="pr2_mechanism_msgs"/>
