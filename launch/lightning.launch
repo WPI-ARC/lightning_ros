@@ -2,7 +2,7 @@
     
     <param name="robot_name" value="pr2" />
     <param name="step_size" value="0.02" />
-    <param name="draw_points" value="true" />
+    <param name="draw_points" value="false" />
     <param name="allowed_planning_time" value="20.0" />
 
     <node name="collision_check_service" pkg="lightning" type="collision_check_service" output="screen">
@@ -15,7 +15,7 @@
     </node>
 
     <!-- load planning -->
-    <include file="$(find lightning)/launch/ompl_planning.launch"/>
+    <include file="$(find lightning)/launch/planners.launch"/>
 
     <node name="rr_node" pkg="lightning" type="RR_action_server.py" output="screen">
         <param name="num_rr_planners" value="2" />
