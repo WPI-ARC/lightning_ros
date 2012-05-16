@@ -78,7 +78,7 @@
 #include <ompl/geometric/planners/kpiece/LBKPIECE1.h>
 #include <ompl/contrib/rrt_star/RRTstar.h>
 
-//addition
+//modification
 #include <ompl/base/PlannerTerminationCondition.h>
 #include "lightning/StopPlanning.h"
 #include "lightning/DrawPoints.h"
@@ -95,7 +95,7 @@ class OmplRosStoppablePlanningGroup
 
         OmplRosStoppablePlanningGroup(){}
 
-        //addition
+        //modification
         void stop_planning();
         
         /**
@@ -202,7 +202,7 @@ class OmplRosStoppablePlanningGroup
           */
         virtual arm_navigation_msgs::RobotTrajectory getSolutionPath() = 0;
 
-        //addition
+        //modification
         //used for being able to display planner search space
         virtual ompl_ros_interface::OmplStateToKinematicStateMapping * get_ompl_state_to_kinematic_state_mapping() {
             return NULL;
@@ -216,7 +216,7 @@ class OmplRosStoppablePlanningGroup
 
     private:
 
-        //addition
+        //modification
         ros::Publisher draw_publisher_;
         bool draw_points_;
 
@@ -226,7 +226,7 @@ class OmplRosStoppablePlanningGroup
         // The kinematic state
         boost::scoped_ptr<planning_models::KinematicState> kinematic_state_;
 
-        //addition
+        //modification
         ompl::base::PlannerTerminationCondition current_termination_condition_;
 
         ompl::base::PlannerPtr ompl_planner_;

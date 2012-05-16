@@ -45,13 +45,13 @@
 #include "lightning/planner_stoppable/ompl_ros_stoppable.h"
 #include <sstream>
 
-//addition: commented out this constructor
+//modification: commented out this constructor
 //OmplRosStoppable::OmplRosStoppable(void): node_handle_("~")
 //{
 //    collision_models_interface_ = new planning_environment::CollisionModelsInterface("robot_description");
 //}
 
-//addition
+//modification
 OmplRosStoppable::OmplRosStoppable(std::string name, std::string stop_name): node_handle_("~")
 {
     planner_name_ = name;
@@ -74,10 +74,10 @@ void OmplRosStoppable::run(void)
     {
         plan_path_service_ = node_handle_.advertiseService("plan_kinematic_path", &OmplRosStoppable::computePlan, this);
 
-        //addition
+        //modification
         stop_planning_subscriber_ = nh_.subscribe(stop_name_, 10, &OmplRosStoppable::stop_planning, this);
 
-        //addition
+        //modification
         ROS_INFO("Listening on %s and %s for ompl ros interface", planner_name_.c_str(), stop_name_.c_str());
 
         node_handle_.param<bool>("publish_diagnostics", publish_diagnostics_,false);
@@ -214,7 +214,7 @@ bool OmplRosStoppable::initializePlanningInstance(const std::string &param_serve
         }
         planner_map_[location] = new_planner;
     }
-    /* addition
+    /*//modification
     else if(planner_type == "RPYIKTaskSpacePlanner")
     {
         boost::shared_ptr<ompl_ros_interface::OmplRosRPYIKTaskSpacePlanner> new_planner;
@@ -239,7 +239,7 @@ bool OmplRosStoppable::initializePlanningInstance(const std::string &param_serve
     return true;
 };
 
-//addition
+//modification
 void OmplRosStoppable::stop_planning(const lightning::StopPlanning::ConstPtr & msg) {
     std::string location, planner_id;
     ROS_INFO("%s got a stop planning message", planner_name_.c_str());
@@ -278,7 +278,7 @@ bool OmplRosStoppable::computePlan(arm_navigation_msgs::GetMotionPlan::Request &
         ROS_DEBUG("Using planner config %s",location.c_str());
     }
 
-    //addition
+    //modification
     std::ostringstream start, goal;
     for (int i = 0; i < (int)request.motion_plan_request.start_state.joint_state.position.size(); i++) {
         start << request.motion_plan_request.start_state.joint_state.position[i] << " ";

@@ -53,7 +53,7 @@
 #include <planning_environment/models/collision_models_interface.h>
 
 // OMPL ROS Interface
-//addition: remove rpy_ik_task_space_planner and added planner_stoppable includes
+//modification: remove rpy_ik_task_space_planner and added planner_stoppable includes
 //#include <ompl_ros_interface/planners/ompl_ros_rpy_ik_task_space_planner.h>
 #include "lightning/planner_stoppable/ompl_ros_stoppable_planning_group.h"
 #include "lightning/planner_stoppable/ompl_ros_stoppable_joint_planner.h"
@@ -62,7 +62,7 @@
 // Diagnostics Message
 #include <ompl_ros_interface/OmplPlannerDiagnostics.h>
 
-//addition
+//modification
 #include "lightning/StopPlanning.h"
 #include "lightning/Status.h"
 
@@ -74,7 +74,7 @@ class OmplRosStoppable
 {
     public:
 
-        //addition: commented out a constructor and added a new one
+        //modification: commented out a constructor and added a new one
         //OmplRosStoppable();
         OmplRosStoppable(std::string name, std::string stop_name);
         ~OmplRosStoppable();
@@ -92,7 +92,7 @@ class OmplRosStoppable
 
     private:
 
-        //addition
+        //modification
         void stop_planning(const lightning::StopPlanning::ConstPtr & msg);
 
         /**
@@ -127,14 +127,14 @@ class OmplRosStoppable
         planning_environment::CollisionModelsInterface *collision_models_interface_;
         ros::NodeHandle                        node_handle_;
 
-        //addition
+        //modification
         ros::NodeHandle nh_;
 
         std::string default_planner_config_;
         bool publish_diagnostics_;
         ros::Publisher diagnostic_publisher_;
 
-        //addition
+        //modification
         std::string stop_name_, planner_name_;
         ros::Subscriber stop_planning_subscriber_;
 };

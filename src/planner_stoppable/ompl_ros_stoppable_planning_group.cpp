@@ -55,9 +55,9 @@ bool OmplRosStoppablePlanningGroup::initialize(const ros::NodeHandle &node_handl
     node_handle_         = node_handle;
     planner_config_name_ = planner_config_name;
 
-    //addition
+    //modification
     draw_publisher_ = node_handle_.advertise<lightning::DrawPoints>("/draw_points", 10);
-    ros::param::param<bool>("draw_points", draw_points_, false);
+    node_handle_.getParam("/draw_points", draw_points_);
 
     if(!initializePhysicalGroup())
         return false;
@@ -90,7 +90,7 @@ bool OmplRosStoppablePlanningGroup::initialize(const ros::NodeHandle &node_handl
     return true;
 };
 
-//addition
+//modification
 void OmplRosStoppablePlanningGroup::stop_planning() {
     current_termination_condition_.terminate();
 }
@@ -458,10 +458,12 @@ bool OmplRosStoppablePlanningGroup::computePlan(arm_navigation_msgs::GetMotionPl
     if(!setStartAndGoalStates(request,response))
         return finish(false);
 
-    //addition
+    //modification
     current_termination_condition_ = ompl::base::timedPlannerTerminationCondition(request.motion_plan_request.allowed_planning_time.toSec());
     bool solved = planner_->solve(current_termination_condition_);
 
+    //bool solved = planner_->solve(request.motion_plan_request.allowed_planning_time.toSec());
+    
     if(solved)
     {
         ROS_DEBUG("Found solution for request in %f seconds",planner_->getLastPlanComputationTime());

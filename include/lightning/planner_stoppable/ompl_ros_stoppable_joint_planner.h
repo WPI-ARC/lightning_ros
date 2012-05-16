@@ -47,7 +47,7 @@
 
 // OMPL ROS Interface
 #include <ompl_ros_interface/state_validity_checkers/ompl_ros_joint_state_validity_checker.h>
-//addition
+//modification
 #include "lightning/planner_stoppable/ompl_ros_stoppable_planning_group.h"
 #include <ompl_ros_interface/ik/ompl_ros_ik_sampler.h>
 
@@ -101,7 +101,7 @@ class OmplRosStoppableJointPlanner: public OmplRosStoppablePlanningGroup
           */
         virtual arm_navigation_msgs::RobotTrajectory getSolutionPath();
 
-        //addition
+        //modification
         //used for displaying planner search space
         virtual ompl_ros_interface::OmplStateToKinematicStateMapping * get_ompl_state_to_kinematic_state_mapping() {
             return &ompl_state_to_kinematic_state_mapping_;

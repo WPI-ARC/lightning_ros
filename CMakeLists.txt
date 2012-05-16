@@ -37,8 +37,7 @@ rosbuild_add_library(collision_checker_l src/tools/collision_checker.cpp
                                          src/tools/collision_utils.cpp)
 rosbuild_add_library(planner_stoppable_l src/planner_stoppable/ompl_ros_stoppable.cpp  
                                          src/planner_stoppable/ompl_ros_stoppable_joint_planner.cpp  
-                                         src/planner_stoppable/ompl_ros_stoppable_planning_group.cpp
-                                         src/planner_stoppable/simple_setup_stoppable.cpp) 
+                                         src/planner_stoppable/ompl_ros_stoppable_planning_group.cpp)
 rosbuild_link_boost(planner_stoppable_l thread)
 rosbuild_add_executable(planner_stoppable_main src/planner_stoppable/planner_stoppable_main.cpp)
 rosbuild_add_executable(collision_check_service src/tools/collision_check_service.cpp)

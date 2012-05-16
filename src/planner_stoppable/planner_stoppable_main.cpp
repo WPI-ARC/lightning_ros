@@ -42,6 +42,7 @@ int main(int argc, char **argv)
     if (argc > 2) {
         ros::init(argc, argv, std::string(ros::this_node::getName()));
         OmplRosStoppable ompl_ros(argv[1], argv[2]);
+        //OmplRosStoppable ompl_ros;
         ompl_ros.run(); 
         ros::AsyncSpinner spinner(2);
         spinner.start();

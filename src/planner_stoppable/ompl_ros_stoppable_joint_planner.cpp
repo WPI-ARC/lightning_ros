@@ -44,7 +44,7 @@
 
 #include "lightning/planner_stoppable/ompl_ros_stoppable_joint_planner.h"
 
-//addition: add ompl_ros_interface namespace in some places since got rid of ompl_ros_interface namespace
+//modification: add ompl_ros_interface namespace in some places since got rid of ompl_ros_interface namespace
 
 bool OmplRosStoppableJointPlanner::initializePlanningStateSpace(ompl::base::StateSpacePtr &state_space)
 {
