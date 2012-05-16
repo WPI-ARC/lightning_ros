@@ -94,7 +94,7 @@ class LightningTester:
             rospy.loginfo("Lightning tester: lightning did not return a path")
             return False
         else:
-            rospy.loginfo("Lightning tester: got path of with start %s, goal %s" % (path[0], path[-1]))
+            rospy.loginfo("Lightning tester: got path with start %s, goal %s" % (path[0], path[-1]))
             if not noMovement:
                 self._stepPathAutomatic(path, controllerName)
             return True
@@ -167,7 +167,7 @@ class LightningTester:
         if ikSolveRes.error_code.val == ikSolveRes.error_code.SUCCESS:
             return ikSolveRes.solution.joint_state.position
         else:
-            #rospy.loginfo("Lightning tester: inverse kinematics failed")
+            rospy.loginfo("Lightning tester: inverse kinematics failed %i", ikSolveRes.error_code.val)
             return []
 
     def _resetBoxScene(self):
@@ -280,6 +280,7 @@ class LightningTester:
             yOffset = sampleBoxFunc()
             goal = sampleGoalFunc(groupName, yOffset)
             while len(goal) == 0 and counter < maxCounter:
+                rospy.loginfo("got goal")
                 goal = sampleGoalFunc(groupName, yOffset)
                 counter += 1
             if counter < maxCounter:
@@ -321,6 +322,8 @@ if __name__ == "__main__":
             tester.runIterationsTable(left_start, int(sys.argv[3]), False, "left_arm", LEFT_ARM_JOINT_NAMES, LEFT_ARM_JOINT_CONTROLLER, waitingTime=1.0)
         elif len(sys.argv) >= 4 and sys.argv[1].find("box") == 0 and sys.argv[2] == "left":
             tester.runIterationsBox(left_start, int(sys.argv[3]), False, "left_arm", LEFT_ARM_JOINT_NAMES, LEFT_ARM_JOINT_CONTROLLER, waitingTime=1.0)
+        elif len(sys.argv) >= 3 and sys.argv[1].find("test") == 0:
+            tester.runIterationsBox(right_start, int(sys.argv[2]), True, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, waitingTime=1.0)
         else:
             rospy.loginfo("Lightning tester: nothing to do")
     except rospy.ROSInterruptException:

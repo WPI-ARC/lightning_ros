@@ -75,9 +75,12 @@ class PFSNode:
         self.stopLock.release()
 
     def _callPlanner(self, start, goal):
+        rospy.loginfo("PFS action server: acquiring planner")
         plannerNumber = self.planTrajectoryWrapper.acquirePlanner()
+        rospy.loginfo("PFS action server: got a planner")
         ret = self.planTrajectoryWrapper.planTrajectory(start, goal, plannerNumber, self.currentJointNames, self.currentGroupName)
         self.planTrajectoryWrapper.releasePlanner(plannerNumber)
+        rospy.loginfo("PFS action server: releasing planner")
         return ret
 
     def getPath(self, actionGoal):

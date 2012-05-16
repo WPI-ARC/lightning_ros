@@ -50,11 +50,12 @@ from arm_navigation_msgs.msg import JointConstraint
 COLLISION_CHECK = "collision_check"
 SHORTCUT_PATH_NAME = "shortcut_path"
 DISPLAY_POINTS = "draw_points"
+PLANNER_NAME = "plan_kinematic_path"
 
 class PlanTrajectoryWrapper:
 
     def __init__(self, nodeType, numPlanners=1):
-        self.PLANNERS = ["/%s_planner_node%i/%s_planner%i" % (nodeType, i, nodeType, i) for i in xrange(numPlanners)]
+        self.PLANNERS = ["/%s_planner_node%i/%s" % (nodeType, i, PLANNER_NAME) for i in xrange(numPlanners)]
         rospy.loginfo("Initializaing %i planners for %s" % (numPlanners, nodeType))
         self.plannerTime = float(rospy.get_param("allowed_planning_time"))
         self.plannerAvailable = [True for i in xrange(numPlanners)]
