@@ -92,7 +92,11 @@ class PathLibrary:
         self.invalid_section_wrapper = InvalidSectionWrapper()
         self.split_paths_function = self._largest_range_split #self._consecutive_split
         
-        #variables that are different for each library
+        self._init_lib_vars()
+
+    #variables that keep track of state for a single library
+    #these variables when a new library is loaded
+    def _init_lib_vars(self):
         self.current_lib_name = ""
         self.tree, self.sg_tree = None, None
         self.node_size = 0
@@ -145,7 +149,7 @@ class PathLibrary:
         sg_tree_load_file = open(self._get_full_filename(SG_TREE_NAME), 'r');
         self.sg_node_size, self.sg_tree = pickle.load(sg_tree_load_file);
         sg_tree_load_file.close();
-
+    
     def _store_current_sg_tree(self):
         sg_tree_file = open(self._get_full_filename(SG_TREE_NAME), 'w')
         pickle.dump((self.sg_node_size, self.sg_tree), sg_tree_file);
@@ -216,7 +220,7 @@ class PathLibrary:
         self.current_num_dims = len(joint_names)
         self.sg_cache = dict()
     
-    def _delete_library_file(self, lib_name):
+    def _delete_library_files(self, lib_name):
         for f in os.listdir(self._get_full_lib_name(lib_name)):
             os.remove(self._get_full_filename(f, lib_name))
 
@@ -227,7 +231,7 @@ class PathLibrary:
             return False
         else:
             rospy.loginfo("Path library: deleting library for robot %s and joints %s" % (robot_name, joint_names))
-            self._delete_library_file(lib)
+            self._delete_library_files(lib)
             os.rmdir(self._get_full_lib_name(lib))
             return True
         
@@ -391,12 +395,10 @@ class PathLibrary:
             return new_count
 
     #work in progress: do not call this
-    def reorganize_paths(self, old_paths_file, new_node_size=None):
-        if new_node_size is None:
-            new_node_size = self.node_size
-        else:
-            self.node_size = new_node_size
-        self._delete_library_file()
+    def reorganize_paths(self, old_paths_file):
+        self._load_node_sizes()
+        self._delete_library_files()
+
         self._init_lib(node_size=new_node_size)
         if old_paths_file[-1] != '/':
             old_paths_file += '/'
@@ -860,7 +862,7 @@ class PathLibrary:
             new_node_size = self.node_size;
         else:
             self.node_size = new_node_size;
-        self._delete_library_file();
+        self._delete_library_files();
         self._init_lib(node_size=new_node_size);
         if old_paths_file[-1] != '/':
             old_paths_file += '/';
