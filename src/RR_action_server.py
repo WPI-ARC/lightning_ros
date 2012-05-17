@@ -91,7 +91,7 @@ class RRNode:
 
     def _call_planner(self, start, goal, planning_time):
         ret = None
-        planner_number = self.plan_trajectory_wrapper.acquirePlanner()
+        planner_number = self.plan_trajectory_wrapper.acquire_planner()
         if not self._need_to_stop():
             ret = self.plan_trajectory_wrapper.plan_trajectory(start, goal, planner_number, self.current_joint_names, self.current_group_name, planning_time)
         self.plan_trajectory_wrapper.release_planner(planner_number)

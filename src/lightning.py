@@ -109,7 +109,7 @@ class Lightning:
         self.current_group_name = request.motion_plan_request.group_name
 
         if self.draw_points:
-            self.draw_points_wrapper.clearPoints()
+            self.draw_points_wrapper.clear_points()
 
         #start a timer that stops planners if they take too long
         self.timer = threading.Thread(target=self._lightning_timeout, args=(request.motion_plan_request.allowed_planning_time.to_sec()))
