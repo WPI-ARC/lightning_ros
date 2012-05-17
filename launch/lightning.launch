@@ -3,7 +3,6 @@
     <param name="robot_name" value="pr2" />
     <param name="step_size" value="0.02" />
     <param name="draw_points" value="false" />
-    <param name="allowed_planning_time" value="20.0" />
 
     <node name="collision_check_service" pkg="lightning" type="collision_check_service" output="screen">
         <param name="num_threads" value="4" />

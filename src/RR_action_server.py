@@ -89,16 +89,16 @@ class RRNode:
         self.repairedSections[index] = section
         self.repairedSectionsLock.release()
 
-    def _callPlanner(self, start, goal):
+    def _callPlanner(self, start, goal, planningTime):
         ret = None
         plannerNumber = self.planTrajectoryWrapper.acquirePlanner()
         if not self._needToStop():
-            ret = self.planTrajectoryWrapper.planTrajectory(start, goal, plannerNumber, self.currentJointNames, self.currentGroupName)
+            ret = self.planTrajectoryWrapper.planTrajectory(start, goal, plannerNumber, self.currentJointNames, self.currentGroupName, planningTime)
         self.planTrajectoryWrapper.releasePlanner(plannerNumber)
         return ret
 
-    def _threadActivity(self, index, start, goal, startIndex, goalIndex):
-        repairedPath = self._callPlanner(start, goal)
+    def _threadActivity(self, index, start, goal, startIndex, goalIndex, planningTime):
+        repairedPath = self._callPlanner(start, goal, planningTime)
         if self.drawPoints:
             if repairedPath is not None and len(repairedPath) > 0:
                 rospy.loginfo("RR action server: got repaired section with start = %s, goal = %s" % (repairedPath[0], repairedPath[-1]))
@@ -135,7 +135,6 @@ class RRNode:
                     invalidDisplay += projected[invSec[0]+1:invSec[-1]]
                 self.drawPointsWrapper.drawPoints(invalidDisplay, self.currentGroupName, "invalid", DrawPointsWrapper.ANGLES, DrawPointsWrapper.RED, 0.2)
 
-
     def retrieveRepair(self, actionGoal):
         self.workingLock.acquire()
         self._setStopValue(False)
@@ -161,7 +160,7 @@ class RRNode:
                         self._doRetrievedPathDrawing(projected, retrieved, invalid)
                     repairState = STATE_REPAIR
             elif repairState == STATE_REPAIR:
-                repaired = self.pathRepair(projected, invalidSections=invalid)
+                repaired = self.pathRepair(projected, actionGoal.allowed_planning_time, invalidSections=invalid)
                 if repaired is None:
                     rospy.loginfo("RR action server: path repair failed")
                     repairState = STATE_FINISHED
@@ -182,7 +181,7 @@ class RRNode:
         self.RRServer.set_succeeded(res)
         self.workingLock.release()
 
-    def pathRepair(self, origPath, invalidSections=None, useParallelReparing=True):
+    def pathRepair(self, origPath, planningTime, invalidSections=None, useParallelReparing=True):
         zeros_tuple = tuple([0 for i in xrange(len(self.currentJointNames))])
         rospy.loginfo("RR action server: got path with %d points" % len(origPath))
         
@@ -203,7 +202,7 @@ class RRNode:
                 #each thread replans an invalid section
                 threadList = []
                 for i, sec in enumerate(invalidSections):
-                    th = threading.Thread(target=self._threadActivity, args=(i, origPath[sec[0]], origPath[sec[-1]], sec[0], sec[-1]))
+                    th = threading.Thread(target=self._threadActivity, args=(i, origPath[sec[0]], origPath[sec[-1]], sec[0], sec[-1], planningTime))
                     threadList.append(th)
                     th.start()
                 for th in threadList:

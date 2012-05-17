@@ -2,6 +2,7 @@ float64[] start
 float64[] goal
 string[] joint_names
 string group_name
+duration allowed_planning_time
 ---
 Float64Array[] retrieved_path
 Float64Array[] repaired_path

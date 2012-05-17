@@ -87,6 +87,14 @@ class Lightning:
         if self.drawPoints:
             self.drawPointsWrapper = DrawPointsWrapper()
 
+    def _lightningTimeout(self, time):
+        self.lightningResponseReadyEvent.wait(time)
+        if self.lightningResponse is None: #timeout
+            if self.useRR:
+                self._sendStopRRPlanning(self.currentGroupName)
+            if self.usePFS:
+                self._sendStopPFSPlanning(self.currentGroupName)
+
     def run(self, request):
         #make sure the request is valid
         startAndGoal = self._isValidMotionPlanRequest(request)
@@ -105,12 +113,16 @@ class Lightning:
         if self.drawPoints:
             self.drawPointsWrapper.clearPoints()
 
+        #start a timer that stops planners if they take too long
+        self.timer = threading.Thread(target=self._lightningTimeout, args=(request.motion_plan_request.allowed_planning_time.to_sec()))
+
         if self.useRR:
             rrClientGoal = RRGoal()
             rrClientGoal.start = s
             rrClientGoal.goal = g
             rrClientGoal.joint_names = self.currentJointNames
             rrClientGoal.group_name = self.currentGroupName
+            rrClientGoal.allowed_planning_time = request.allowed_planning_time
             self.RRClient.wait_for_server()
             rospy.loginfo("Lightning: Sending goal to RR")
             self.RRClient.send_goal(rrClientGoal, done_cb=self.rrDoneCb)
@@ -121,6 +133,7 @@ class Lightning:
             pfsClientGoal.goal = g
             pfsClientGoal.joint_names = self.currentJointNames
             pfsClientGoal.group_name = self.currentGroupName
+            pfsClientGoal.allowed_planning_time = request.allowed_planning_time
             self.PFSClient.wait_for_server()
             rospy.loginfo("Lightning: Sending goal to PFS")
             self.PFSClient.send_goal(pfsClientGoal, done_cb=self.pfsDoneCb)
@@ -134,23 +147,33 @@ class Lightning:
         #self.lightningServer.set_succeeded(self.lightningResponse)
         return self.lightningResponse
 
+    def _printError(self, msg):
+        rospy.logerr("***ERROR*** %s ***ERROR***" % (msg))
+
     def _isValidMotionPlanRequest(self, request):
-        if len(request.motion_plan_request.goal_constraints.position_constraints) > 0:
-            rospy.logerr("***ERROR***Lightning: does not handle position constraints***ERROR***")
+        if request.motion_plan_request.allowed_planning_time.to_sec() <= 0:
+            self._printError("Lightning: requires allowed_planning_time to be greater than 0")
             return None
+        
+        if len(request.motion_plan_request.goal_constraints.position_constraints) > 0:
+            self._printError("Lightning: does not handle position constraints")
+            return None
+
         s = list(request.motion_plan_request.start_state.joint_state.position)
         g = []
         for jc in request.motion_plan_request.goal_constraints.joint_constraints:
             if jc.tolerance_above != 0 or jc.tolerance_below != 0:
-                rospy.logerr("***ERROR***Lightning: does not handle tolerances***ERROR***")
+                self._printError("Lightning: does not handle tolerances")
                 return None
             else:
                 g.append(jc.position)
+
         if len(s) == 0:
-            rospy.logerr("Lightning: did not receive a start state")
+            self._printError("Lightning: did not receive a start state")
             return None
+
         if len(g) == 0:
-            rospy.logerr("Lightning: did not receive a goal state")
+            self._printError("Lightning: did not receive a goal state")
             return None
         return s, g
 
@@ -246,16 +269,16 @@ class Lightning:
             storeRequest.retrieved_path.append(jtp)
         self.manageLibraryClient(storeRequest)
         
-    def _sendStopPFSPlanning(self, modelGroup):
-        self.stopPFSPublisher.publish(self._createStopPlanningMessage(modelGroup))
+    def _sendStopPFSPlanning(self):
+        self.stopPFSPublisher.publish(self._createStopPlanningMessage())
 
-    def _sendStopRRPlanning(self, modelGroup):
-        self.stopRRPublisher.publish(self._createStopPlanningMessage(modelGroup))
+    def _sendStopRRPlanning(self):
+        self.stopRRPublisher.publish(self._createStopPlanningMessage())
 
-    def _createStopPlanningMessage(self, modelGroup):
+    def _createStopPlanningMessage(self):
         stopMessage = StopPlanning()
         stopMessage.planner_id = PLANNER_CONFIG_NAME
-        stopMessage.group_name = modelGroup
+        stopMessage.group_name = self.currentGroupName
         return stopMessage
 
 if __name__ == "__main__":

@@ -74,11 +74,11 @@ class PFSNode:
         self.stop = val
         self.stopLock.release()
 
-    def _callPlanner(self, start, goal):
+    def _callPlanner(self, start, goal, planningTime):
         rospy.loginfo("PFS action server: acquiring planner")
         plannerNumber = self.planTrajectoryWrapper.acquirePlanner()
         rospy.loginfo("PFS action server: got a planner")
-        ret = self.planTrajectoryWrapper.planTrajectory(start, goal, plannerNumber, self.currentJointNames, self.currentGroupName)
+        ret = self.planTrajectoryWrapper.planTrajectory(start, goal, plannerNumber, self.currentJointNames, self.currentGroupName, planningTime)
         self.planTrajectoryWrapper.releasePlanner(plannerNumber)
         rospy.loginfo("PFS action server: releasing planner")
         return ret
@@ -92,7 +92,7 @@ class PFSNode:
         self.currentJointNames = actionGoal.joint_names
         self.currentGroupName = actionGoal.group_name
         if not self._getStopValue():
-            unfiltered = self._callPlanner(s, g)
+            unfiltered = self._callPlanner(s, g, actionGoal.allowed_planning_time)
             if unfiltered is None:
                 self.PFSServer.set_succeeded(res)
                 return

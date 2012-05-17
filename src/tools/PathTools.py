@@ -57,7 +57,6 @@ class PlanTrajectoryWrapper:
     def __init__(self, nodeType, numPlanners=1):
         self.PLANNERS = ["/%s_planner_node%i/%s" % (nodeType, i, PLANNER_NAME) for i in xrange(numPlanners)]
         rospy.loginfo("Initializaing %i planners for %s" % (numPlanners, nodeType))
-        self.plannerTime = float(rospy.get_param("allowed_planning_time"))
         self.plannerAvailable = [True for i in xrange(numPlanners)]
         self.plannerLock = threading.Lock()
         self.releasedEvent = threading.Event()
@@ -93,14 +92,14 @@ class PlanTrajectoryWrapper:
 
     #planner to get new trajectory from start_point to goal_point
     #plannerNumber is the number received from acquirePlanner
-    def planTrajectory(self, start_point, goal_point, plannerNumber, joint_names, groupName, plannerConfigName="RRTConnectkConfig1"):
+    def planTrajectory(self, start_point, goal_point, plannerNumber, joint_names, groupName, planningTime, plannerConfigName="RRTConnectkConfig1"):
         plannerClient = rospy.ServiceProxy(self.PLANNERS[plannerNumber], GetMotionPlan)
         rospy.loginfo("Plan Trajectory Wrapper: got a planTrajectory request for %s with start = %s and goal = %s" % (self.PLANNERS[plannerNumber], start_point, goal_point))
         req = GetMotionPlanRequest()
         req.motion_plan_request.workspace_parameters.workspace_region_pose.header.stamp = rospy.get_rostime()
         req.motion_plan_request.group_name = groupName
         req.motion_plan_request.num_planning_attempts = 1
-        req.motion_plan_request.allowed_planning_time = rospy.Duration(self.plannerTime)
+        req.motion_plan_request.allowed_planning_time = rospy.Duration(planningTime)
         req.motion_plan_request.planner_id = plannerConfigName #using RRT planner by default
 
         req.motion_plan_request.start_state.joint_state.header.stamp = rospy.get_rostime()

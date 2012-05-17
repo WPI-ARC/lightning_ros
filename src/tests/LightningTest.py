@@ -77,9 +77,9 @@ class LightningTester:
 
     #if the tester is stopped while waiting for planning, then gazebo physics may need to be unpaused
     #to unpause physics, run "rosservice call /gazebo/unpause_physics" in the command line
-    def _doSingleTest(self, s, g, noMovement, groupName, jointNames, controllerName):
+    def _doSingleTest(self, s, g, noMovement, groupName, jointNames, controllerName, planningTime):
         subprocess.check_call("rosservice call /gazebo/pause_physics", shell=True)
-        request = self._createGetMotionPlanRequest(s, g, groupName, jointNames)
+        request = self._createGetMotionPlanRequest(s, g, groupName, jointNames, planningTime)
         rospy.wait_for_service(LIGHTNING_NAME)
         #rospy.loginfo("Lightning tester: sending request for start %s, goal %s" % (s, g)) 
         try:
@@ -99,7 +99,7 @@ class LightningTester:
                 self._stepPathAutomatic(path, controllerName)
             return True
 
-    def _createGetMotionPlanRequest(self, start_point, goal_point, groupName, jointNames):
+    def _createGetMotionPlanRequest(self, start_point, goal_point, groupName, jointNames, planningTime):
         req = GetMotionPlanRequest()
         req.motion_plan_request.group_name = groupName
 
@@ -113,6 +113,8 @@ class LightningTester:
             tempConstraint.joint_name = jointNames[i]
             tempConstraint.position = goal_point[i]
             req.motion_plan_request.goal_constraints.joint_constraints.append(tempConstraint)
+
+        req.motion_plan_request.allowed_planning_time = rospy.Duration(planningTime)
         return req
 
     #make sure the joint controller is turned off before calling this
@@ -266,7 +268,7 @@ class LightningTester:
         return list(self._doIK(randX, randY+yOffset, z, arm))
 
     #make sure to turn off the arm controller before calling runIterations
-    def _runIterationsCommon(self, s, n, sampleBoxFunc, sampleGoalFunc, noMovement, waitingTime, groupName, jointNames, controllerName):
+    def _runIterationsCommon(self, s, n, sampleBoxFunc, sampleGoalFunc, noMovement, waitingTime, groupName, jointNames, controllerName, planningTime):
         rospy.loginfo("Lightning tester: number of test iterations = %i" % (n))
         self.moveToJointConfigs(controllerName, s)
         maxCounter = 100
@@ -285,19 +287,19 @@ class LightningTester:
                 counter += 1
             if counter < maxCounter:
                 rospy.loginfo("Lightning tester: goal = %s" % (str(goal)))
-                foundPath = self._doSingleTest(s, goal, noMovement, groupName, jointNames, controllerName)
+                foundPath = self._doSingleTest(s, goal, noMovement, groupName, jointNames, controllerName, planningTime)
                 if foundPath:
                     i += 1
                 rospy.loginfo("Lightning tester: waiting...")
                 time.sleep(waitingTime)
                 rospy.loginfo("Lightning tester: done waiting")
 
-    def runIterationsBox(self, s, n, noMovement, groupName, jointNames, controllerName, waitingTime=5.0):
+    def runIterationsBox(self, s, n, noMovement, groupName, jointNames, controllerName, planningTime=60.0, waitingTime=5.0):
         self._runIterationsCommon(s, n, self._resetBoxScene, self._sampleBoxGoal, noMovement, waitingTime, groupName, jointNames, controllerName)
 
-    def runIterationsTable(self, s, n, noMovement, groupName, jointNames, controllerName, waitingTime=5.0, numBoxes=4):
+    def runIterationsTable(self, s, n, noMovement, groupName, jointNames, controllerName, planningTime=60.0, waitingTime=5.0, numBoxes=4):
         sampleBoxFunc = (lambda: self._sampleTableScene(numBoxes, groupName))
-        self._runIterationsCommon(s, n, sampleBoxFunc, self._sampleTableGoal, noMovement, waitingTime, groupName, jointNames, controllerName)
+        self._runIterationsCommon(s, n, sampleBoxFunc, self._sampleTableGoal, noMovement, waitingTime, groupName, jointNames, controllerName, planningTime)
 
 if __name__ == "__main__":
     try:
@@ -315,15 +317,15 @@ if __name__ == "__main__":
         tester.moveToJointConfigs(LEFT_ARM_JOINT_CONTROLLER, left_start)
         
         if len(sys.argv) >= 4 and sys.argv[1].find("table") == 0 and sys.argv[2] == "right":
-            tester.runIterationsTable(right_start, int(sys.argv[3]), False, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, waitingTime=1.0)
+            tester.runIterationsTable(right_start, int(sys.argv[3]), False, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planningTime=20.0, waitingTime=1.0)
         elif len(sys.argv) >= 4 and sys.argv[1].find("box") == 0 and sys.argv[2] == "right":
-            tester.runIterationsBox(right_start, int(sys.argv[3]), False, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, waitingTime=1.0)
+            tester.runIterationsBox(right_start, int(sys.argv[3]), False, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planningTime=20.0, waitingTime=1.0)
         elif len(sys.argv) >= 4 and sys.argv[1].find("table") == 0 and sys.argv[2] == "left":
-            tester.runIterationsTable(left_start, int(sys.argv[3]), False, "left_arm", LEFT_ARM_JOINT_NAMES, LEFT_ARM_JOINT_CONTROLLER, waitingTime=1.0)
+            tester.runIterationsTable(left_start, int(sys.argv[3]), False, "left_arm", LEFT_ARM_JOINT_NAMES, LEFT_ARM_JOINT_CONTROLLER, planningTime=20.0, waitingTime=1.0)
         elif len(sys.argv) >= 4 and sys.argv[1].find("box") == 0 and sys.argv[2] == "left":
-            tester.runIterationsBox(left_start, int(sys.argv[3]), False, "left_arm", LEFT_ARM_JOINT_NAMES, LEFT_ARM_JOINT_CONTROLLER, waitingTime=1.0)
+            tester.runIterationsBox(left_start, int(sys.argv[3]), False, "left_arm", LEFT_ARM_JOINT_NAMES, LEFT_ARM_JOINT_CONTROLLER, planningTime=20.0, waitingTime=1.0)
         elif len(sys.argv) >= 3 and sys.argv[1].find("test") == 0:
-            tester.runIterationsBox(right_start, int(sys.argv[2]), True, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, waitingTime=1.0)
+            tester.runIterationsBox(right_start, int(sys.argv[2]), True, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planningTime=20.0, waitingTime=1.0)
         else:
             rospy.loginfo("Lightning tester: nothing to do")
     except rospy.ROSInterruptException:
