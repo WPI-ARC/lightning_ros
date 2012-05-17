@@ -87,17 +87,18 @@ class PathLibrary:
             path_library_dir = path_library_dir[:-1]
         self.path_library_dir = path_library_dir
         self.step_size = step_size
-        self.node_size = node_size
-        self.sg_node_size = sg_node_size
+        self.new_node_size, self.new_sg_node_size = node_size, sg_node_size
         self.dtw_dist = dtw_dist
         self.invalid_section_wrapper = InvalidSectionWrapper()
         self.split_paths_function = self._largest_range_split #self._consecutive_split
         
         #variables that are different for each library
-        self.next_path_id = 0
         self.current_lib_name = ""
-        self.current_num_dims = 0
         self.tree, self.sg_tree = None, None
+        self.node_size = 0
+        self.sg_node_size = 0
+        self.next_path_id = 0
+        self.current_num_dims = 0
         self.sg_cache = dict()
 
     def _init_paths_file(self, filename):
@@ -139,20 +140,20 @@ class PathLibrary:
         
     def _load_trees(self):
         tree_load_file = open(self._get_full_filename(PATH_TREE_NAME), 'r');
-        self.tree = pickle.load(tree_load_file);
+        self.node_size, self.tree = pickle.load(tree_load_file);
         tree_load_file.close();
         sg_tree_load_file = open(self._get_full_filename(SG_TREE_NAME), 'r');
-        self.sg_tree = pickle.load(sg_tree_load_file);
+        self.sg_node_size, self.sg_tree = pickle.load(sg_tree_load_file);
         sg_tree_load_file.close();
 
     def _store_current_sg_tree(self):
         sg_tree_file = open(self._get_full_filename(SG_TREE_NAME), 'w')
-        pickle.dump(self.sg_tree, sg_tree_file);
+        pickle.dump((self.sg_node_size, self.sg_tree), sg_tree_file);
         sg_tree_file.close();
         
     def _store_current_path_tree(self):
         tree_file = open(self._get_full_filename(PATH_TREE_NAME), 'w')
-        pickle.dump(self.tree, tree_file);
+        pickle.dump((self.node_size, self.tree), tree_file);
         tree_file.close();
 
     def _store_current_trees(self):
@@ -189,6 +190,7 @@ class PathLibrary:
         return True
 
     def _create_and_load_new_library(self, robot_name, joint_names):
+        #figure out a unique library id
         taken_ids = set()
         for lib in os.listdir(self.path_library_dir):
             taken_ids.add(int(lib.split("_")[1]))
@@ -206,11 +208,13 @@ class PathLibrary:
         info_file.write("%s\n" % ('|'.join(joint_names)))
         self.tree = PathTreeNode(ROOT_NAME, None);
         self.sg_tree = SGTreeNode(SG_ROOT_NAME, None);
+        self.node_size, self.sg_node_size = self.new_node_size, self.new_sg_node_size
         self._store_current_trees();
         self._init_paths_file(self.tree.name);
         self._init_sgs_file(self.sg_tree.name);
         self.next_path_id = 1
         self.current_num_dims = len(joint_names)
+        self.sg_cache = dict()
     
     def _delete_library_file(self, lib_name):
         for f in os.listdir(self._get_full_lib_name(lib_name)):
