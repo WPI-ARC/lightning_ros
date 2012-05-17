@@ -482,6 +482,7 @@ class PathLibrary:
         temp_paths = sorted(paths, key=(lambda t: index_function(t)))
         current_split_value = len(temp_paths)/2
         
+        #send all paths with same value at split index to the left
         while current_split_value < len(temp_paths) and index_function(temp_paths[current_split_value-1]) == index_function(temp_paths[current_split_value]):
             current_split_value += 1
 
@@ -490,9 +491,8 @@ class PathLibrary:
             while current_split_value > 0 and index_function(temp_paths[current_split_value-1]) == index_function(temp_paths[current_split_value]):
                 current_split_value -= 1
             if current_split_value == 0:
-                rospy.loginfo("Too many start goals that are the same, not adding path to library.")
-                tree_node.split_value = index_function(temp_paths[current_split_value-1])
-                return (temp_paths, [])
+                rospy.loginfo("Path library: too many start goals that are the same, not allowing last added path")
+                return (sorted(temp_paths, key=lambda path_with_id: path_with_id[0])[:-1], [])
         tree_node.split_value = (index_function(temp_paths[current_split_value-1])+index_function(temp_paths[current_split_value]))/2.0
         return (temp_paths[:current_split_value], temp_paths[current_split_value:]);
     
