@@ -3,3 +3,4 @@ float64[] start
 float64[] goal
 string[] joint_names
 string group_name
+duration allowed_planning_time
