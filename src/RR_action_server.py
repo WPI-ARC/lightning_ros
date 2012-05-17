@@ -254,10 +254,13 @@ class RRNode:
         self.stop_rr_planner_publisher.publish(msg)
 
     def _do_manage_action(self, request):
-        self.working_lock.acquire()
         response = ManagePathLibraryResponse()
         response.result = response.FAILURE
-        
+        if request.robot_name == "" or len(request.joint_names) == 0:
+            rospy.logerr("RR action server: robot name or joint names were not provided")
+            return response
+
+        self.working_lock.acquire()
         if request.action == request.ACTION_STORE:
             rospy.loginfo("RR action server: got a path to store in path library")
             if len(request.path_to_store) > 0:
