@@ -48,7 +48,6 @@ from arm_navigation_msgs.srv import GetMotionPlan, GetMotionPlanResponse
 from tools.PathTools import ShortcutPathWrapper, DrawPointsWrapper
 from trajectory_msgs.msg import JointTrajectoryPoint
 
-PLANNER_CONFIG_NAME = "RRTConnectkConfig1"
 RR_NODE_NAME = "rr_node"
 PFS_NODE_NAME = "pfs_node"
 STOP_RR_NAME = "stop_all_rr"
@@ -272,7 +271,7 @@ class Lightning:
 
     def _create_stop_planning_message(self):
         stop_message = StopPlanning()
-        stop_message.planner_id = PLANNER_CONFIG_NAME
+        stop_message.planner_id = rospy.get_param("planner_config_name")
         stop_message.group_name = self.current_group_name
         return stop_message
 

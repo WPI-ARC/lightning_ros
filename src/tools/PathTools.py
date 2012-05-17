@@ -55,7 +55,7 @@ PLANNER_NAME = "plan_kinematic_path"
 class PlanTrajectoryWrapper:
 
     def __init__(self, node_type, num_planners=1):
-        self.planners = ["/%s_planner_node%i/%s" % (node_type, i, PLANNER_NAME) for i in xrange(num_planners)]
+        self.planners = ["%s_planner_node%i/%s" % (node_type, i, PLANNER_NAME) for i in xrange(num_planners)]
         rospy.loginfo("Initializaing %i planners for %s" % (num_planners, node_type))
         self.planners_available = [True for i in xrange(num_planners)]
         self.planner_lock = threading.Lock()
@@ -92,7 +92,7 @@ class PlanTrajectoryWrapper:
 
     #planner to get new trajectory from start_point to goal_point
     #planner_number is the number received from acquire_planner
-    def plan_trajectory(self, start_point, goal_point, planner_number, joint_names, group_name, planning_time, planner_config_name="RRTConnectkConfig1"):
+    def plan_trajectory(self, start_point, goal_point, planner_number, joint_names, group_name, planning_time, planner_config_name):
         planner_client = rospy.ServiceProxy(self.planners[planner_number], GetMotionPlan)
         rospy.loginfo("Plan Trajectory Wrapper: got a plan_trajectory request for %s with start = %s and goal = %s" % (self.planners[planner_number], start_point, goal_point))
         req = GetMotionPlanRequest()

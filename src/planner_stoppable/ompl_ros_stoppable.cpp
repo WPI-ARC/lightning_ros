@@ -56,7 +56,8 @@ OmplRosStoppable::OmplRosStoppable(std::string name, std::string stop_name): nod
 {
     planner_name_ = name;
     stop_name_ = stop_name;
-    collision_models_interface_ = new planning_environment::CollisionModelsInterface("robot_description");
+    //modification: added '/' to robot_description since using lightning namespace
+    collision_models_interface_ = new planning_environment::CollisionModelsInterface("/robot_description");
     ROS_INFO("OmplRosStoppable started");
 }
 

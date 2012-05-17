@@ -51,17 +51,16 @@ from lightning.srv import ManagePathLibrary, ManagePathLibraryResponse
 import sys
 import pickle
 
-COLLISION_CHECK_NODE = "collision_check"
 RR_NODE_NAME = "rr_node"
 STOP_PLANNER_NAME = "stop_rr_planning"
 STOP_RR_NAME = "stop_all_rr"
-RETRIEVE_PATH_NAME = "retrieve_path"
 MANAGE_LIBRARY = "manage_path_library"
 STATE_RETRIEVE, STATE_REPAIR, STATE_RETURN_PATH, STATE_FINISHED, STATE_FINISHED = (0, 1, 2, 3, 4)
 
 class RRNode:
     def __init__(self):
         self.robot_name = rospy.get_param("robot_name")
+        self.planner_config_name = rospy.get_param("planner_config_name")
         self.current_joint_names = []
         self.current_group_name = ""
         self.plan_trajectory_wrapper = PlanTrajectoryWrapper("rr", int(rospy.get_param("~num_rr_planners")))
@@ -93,7 +92,7 @@ class RRNode:
         ret = None
         planner_number = self.plan_trajectory_wrapper.acquire_planner()
         if not self._need_to_stop():
-            ret = self.plan_trajectory_wrapper.plan_trajectory(start, goal, planner_number, self.current_joint_names, self.current_group_name, planning_time)
+            ret = self.plan_trajectory_wrapper.plan_trajectory(start, goal, planner_number, self.current_joint_names, self.current_group_name, planning_time, self.planner_config_name)
         self.plan_trajectory_wrapper.release_planner(planner_number)
         return ret
 

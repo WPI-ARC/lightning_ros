@@ -14,6 +14,7 @@
   <include file="$(find pr2_machine)/$(env ROBOT).machine" />  
 
   <arg name="planner_type" value="RRTConnectkConfig1" />
+  <param name="planner_config_name" value="$(arg planner_type)" />
  
   <!-- send additional description parameters -->
   <include file="$(find pr2_arm_navigation_config)/launch/pr2_planning_environment.launch" />

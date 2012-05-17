@@ -55,7 +55,7 @@ import os
 import sys
 import subprocess
 
-LIGHTNING_NAME = "lightning_get_path";
+LIGHTNING_NAME = "/lightning/lightning_get_path";
 RIGHT_ARM_JOINT_NAMES = ['r_shoulder_pan_joint', 'r_shoulder_lift_joint', 'r_upper_arm_roll_joint', 'r_elbow_flex_joint', 'r_forearm_roll_joint', 'r_wrist_flex_joint', 'r_wrist_roll_joint'];
 LEFT_ARM_JOINT_NAMES = ['l_shoulder_pan_joint', 'l_shoulder_lift_joint', 'l_upper_arm_roll_joint', 'l_elbow_flex_joint', 'l_forearm_roll_joint', 'l_wrist_flex_joint', 'l_wrist_roll_joint'];
 RIGHT_ARM_JOINT_CONTROLLER = "r_arm_controller"

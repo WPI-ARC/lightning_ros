@@ -54,6 +54,7 @@ STOP_PFS_NAME = "stop_all_pfs";
 class PFSNode:
     def __init__(self):
         self.plan_trajectory_wrapper = PlanTrajectoryWrapper("pfs")
+        self.planner_config_name = rospy.get_param("planner_config_name")
         self.stop_lock = threading.Lock()
         self.current_joint_names = []
         self.current_group_name = ""
@@ -78,7 +79,7 @@ class PFSNode:
         rospy.loginfo("PFS action server: acquiring planner")
         planner_number = self.plan_trajectory_wrapper.acquire_planner()
         rospy.loginfo("PFS action server: got a planner")
-        ret = self.plan_trajectory_wrapper.plan_trajectory(start, goal, planner_number, self.current_joint_names, self.current_group_name, planning_time)
+        ret = self.plan_trajectory_wrapper.plan_trajectory(start, goal, planner_number, self.current_joint_names, self.current_group_name, planning_time, self.planner_config_name)
         self.plan_trajectory_wrapper.release_planner(planner_number)
         rospy.loginfo("PFS action server: releasing planner")
         return ret

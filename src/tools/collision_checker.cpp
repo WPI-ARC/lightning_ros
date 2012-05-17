@@ -38,7 +38,7 @@ of its
 #include "lightning/collision_checker.h"
 
 CollisionChecker::CollisionChecker(double step_size) {
-    collision_models_interface_ = new planning_environment::CollisionModelsInterface("robot_description");
+    collision_models_interface_ = new planning_environment::CollisionModelsInterface("/robot_description");
 
     step_size_ = step_size;
 }
