@@ -85,8 +85,11 @@ class Lightning:
             self.draw_points_wrapper = DrawPointsWrapper()
 
     def _lightning_timeout(self, time):
-        self.lightning_response_ready_event.wait(time)
-        if self.lightning_response is None: #timeout
+        rospy.loginfo("got in, time = %f" % (time))
+        if self.lightning_response_ready_event.wait(time):
+            rospy.loginfo("got out, time = %f" % (time))
+        else:
+            rospy.loginfo("Lightning: ran out of time")
             if self.use_rr:
                 self._send_stop_rr_planning()
             if self.use_pfs:
@@ -111,7 +114,7 @@ class Lightning:
             self.draw_points_wrapper.clear_points()
 
         #start a timer that stops planners if they take too long
-        self.timer = threading.Thread(target=self._lightning_timeout, args=(request.motion_plan_request.allowed_planning_time.to_sec()))
+        timer = threading.Thread(target=self._lightning_timeout, args=(request.motion_plan_request.allowed_planning_time.to_sec()))
 
         if self.use_rr:
             rr_client_goal = RRGoal()

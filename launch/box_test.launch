@@ -8,7 +8,7 @@
 
     <include file="$(find lightning)/launch/lightning.launch">
     </include>
-    <param name="draw_points" value="true" />
+    <param name="/lightning/draw_points" value="true" />
 
     <node name="run_test" pkg="lightning" type="LightningTest.py" args="box $(arg arm_to_use) $(arg num_test_iterations)" output="screen">
     </node>

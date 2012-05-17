@@ -102,7 +102,6 @@ class LightningTester:
         req = GetMotionPlanRequest()
         req.motion_plan_request.group_name = group_name
 
-        req.motion_plan_request.start_state.joint_state.header.stamp = rospy.get_rostime()
         req.motion_plan_request.start_state.joint_state.name = joint_names
         req.motion_plan_request.start_state.joint_state.position = start_point
 
@@ -281,7 +280,6 @@ class LightningTester:
             y_offset = sample_box_func()
             goal = sample_goal_func(group_name, y_offset)
             while len(goal) == 0 and counter < max_counter:
-                rospy.loginfo("got goal")
                 goal = sample_goal_func(group_name, y_offset)
                 counter += 1
             if counter < max_counter:
@@ -324,7 +322,8 @@ if __name__ == "__main__":
         elif len(sys.argv) >= 4 and sys.argv[1].find("box") == 0 and sys.argv[2] == "left":
             tester.run_iterations_box(left_start, int(sys.argv[3]), False, "left_arm", LEFT_ARM_JOINT_NAMES, LEFT_ARM_JOINT_CONTROLLER, planning_time=20.0, waiting_time=1.0)
         elif len(sys.argv) >= 3 and sys.argv[1].find("test") == 0:
-            tester.run_iterations_box(right_start, int(sys.argv[2]), True, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planning_time=20.0, waiting_time=1.0)
+            #no display
+            tester.run_iterations_box(right_start, int(sys.argv[2]), True, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planning_time=20.0, waiting_time=5.0)
         else:
             rospy.loginfo("Lightning tester: nothing to do")
     except rospy.ROSInterruptException:
