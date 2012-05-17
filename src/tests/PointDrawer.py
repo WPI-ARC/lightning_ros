@@ -46,7 +46,7 @@ from lightning.msg import DrawPoints
 from kinematics_msgs.srv import GetKinematicSolverInfo, GetKinematicSolverInfoRequest, GetPositionFK, GetPositionFKRequest
 from geometry_msgs.msg import Point
 
-DRAW_POINTS = "draw_points"
+DRAW_POINTS = "/lightning/draw_points"
 MARKER_SUBSCRIBER_NAME = "visualization_marker_array"
 
 class PointDrawer:

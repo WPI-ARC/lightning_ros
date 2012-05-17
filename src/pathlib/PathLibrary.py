@@ -178,7 +178,7 @@ class PathLibrary:
 
     def _find_library(self, robot_name, joint_names):
         for lib in os.listdir(self.path_library_dir):
-            if self._get_robot_name_and_joints(lib) == (robot_name, joint_names):
+            if lib.find(LIBRARY_DIR_PREFIX) == 0 and self._get_robot_name_and_joints(lib) == (robot_name, joint_names):
                 return lib
         return None
 
@@ -197,7 +197,8 @@ class PathLibrary:
         #figure out a unique library id
         taken_ids = set()
         for lib in os.listdir(self.path_library_dir):
-            taken_ids.add(int(lib.split("_")[1]))
+            if lib.find(LIBRARY_DIR_PREFIX) == 0:
+                taken_ids.add(int(lib.split("_")[1]))
         new_id = 0
         while True:
             if new_id in taken_ids:

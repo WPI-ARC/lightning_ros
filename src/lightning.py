@@ -115,6 +115,7 @@ class Lightning:
 
         #start a timer that stops planners if they take too long
         timer = threading.Thread(target=self._lightning_timeout, args=(request.motion_plan_request.allowed_planning_time.to_sec()))
+        timer.start()
 
         if self.use_rr:
             rr_client_goal = RRGoal()
