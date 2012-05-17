@@ -58,29 +58,29 @@ BOX_CENTER_Z = 0.95
 
 class BoxAdder:
     def __init__(self):
-        self.setPlanningSceneDiffClient = rospy.ServiceProxy(SET_PLANNING_SCENE_DIFF_NAME, SetPlanningSceneDiff);
+        self.spsd_client = rospy.ServiceProxy(SET_PLANNING_SCENE_DIFF_NAME, SetPlanningSceneDiff);
         self.req = SetPlanningSceneDiffRequest()
 
-    def clearPlanningScene(self):
+    def clear_planning_scene(self):
         self.req = SetPlanningSceneDiffRequest()
         self.req.planning_scene_diff.collision_objects = []
-        self._setPlanningScene()
+        self._set_planning_scene()
 
-    def resetBoxScene(self):
+    def reset_box_scene(self):
         self.req = SetPlanningSceneDiffRequest()
-        self._addBoxScene()
-        self._setPlanningScene()
+        self._add_box_scene()
+        self._set_planning_scene()
 
-    def setTableScene(self, newPositions):
+    def set_table_scene(self, new_positions):
         height = SMALL_BOX_SIZE
         side = SMALL_BOX_SIZE
         self.req = SetPlanningSceneDiffRequest()
-        self._addStaticTableBoxes()
-        for i in xrange(len(newPositions)):
-            self._addBox("box"+str(i), newPositions[i][0], newPositions[i][1], newPositions[i][2], side, side, height)
-        self._setPlanningScene()
+        self._add_static_table_boxes()
+        for i in xrange(len(new_positions)):
+            self._add_box("box"+str(i), new_positions[i][0], new_positions[i][1], new_positions[i][2], side, side, height)
+        self._set_planning_scene()
 
-    def _addBox(self, name, px, py, pz, sl, sw, sh):
+    def _add_box(self, name, px, py, pz, sl, sw, sh):
         obj = CollisionObject()
         obj.id = name
         obj.operation.operation = CollisionObjectOperation.ADD
@@ -103,25 +103,25 @@ class BoxAdder:
         obj.poses.append(pos)
         self.req.planning_scene_diff.collision_objects.append(obj)
 
-    def _addBoxScene(self):
-        self._addBox("box_top", BOX_CENTER_X, BOX_CENTER_Y, BOX_CENTER_Z+0.25, 0.42, 0.42, 0.05)
-        self._addBox("box_bottom", BOX_CENTER_X, BOX_CENTER_Y, BOX_CENTER_Z-0.25, 0.42, 0.42, 0.05)
-        self._addBox("box_left", BOX_CENTER_X, BOX_CENTER_Y+0.25, BOX_CENTER_Z, 0.42, 0.05, 0.42)
-        self._addBox("box_right", BOX_CENTER_X, BOX_CENTER_Y-0.25, BOX_CENTER_Z, 0.42, 0.05, 0.42)
-        self._addBox("counter", BOX_CENTER_X-0.05, BOX_CENTER_Y, BOX_CENTER_Z-0.45, 0.8, 2.5, 0.35)
+    def _add_box_scene(self):
+        self._add_box("box_top", BOX_CENTER_X, BOX_CENTER_Y, BOX_CENTER_Z+0.25, 0.42, 0.42, 0.05)
+        self._add_box("box_bottom", BOX_CENTER_X, BOX_CENTER_Y, BOX_CENTER_Z-0.25, 0.42, 0.42, 0.05)
+        self._add_box("box_left", BOX_CENTER_X, BOX_CENTER_Y+0.25, BOX_CENTER_Z, 0.42, 0.05, 0.42)
+        self._add_box("box_right", BOX_CENTER_X, BOX_CENTER_Y-0.25, BOX_CENTER_Z, 0.42, 0.05, 0.42)
+        self._add_box("counter", BOX_CENTER_X-0.05, BOX_CENTER_Y, BOX_CENTER_Z-0.45, 0.8, 2.5, 0.35)
 
-    def _addStaticTableBoxes(self):
-        self._addBox("counter", 0.6, 0.0, TABLE_LEVEL-0.08, 0.5, 1.8, 0.05)
+    def _add_static_table_boxes(self):
+        self._add_box("counter", 0.6, 0.0, TABLE_LEVEL-0.08, 0.5, 1.8, 0.05)
 
-    def _setPlanningScene(self):
+    def _set_planning_scene(self):
         while rospy.get_time() == 0:
             rospy.sleep(0.1);
         for obj in self.req.planning_scene_diff.collision_objects:
             obj.header.stamp = rospy.get_rostime()
         rospy.wait_for_service(SET_PLANNING_SCENE_DIFF_NAME)
         try:
-            rospy.loginfo("Box adder: Sending new planning scene to %s" % self.setPlanningSceneDiffClient.resolved_name)
-            response = self.setPlanningSceneDiffClient(self.req)
+            rospy.loginfo("Box adder: Sending new planning scene to %s" % self.spsd_client.resolved_name)
+            response = self.spsd_client(self.req)
             rospy.loginfo("Box adder: collision objects: %s" % (str(len(response.planning_scene.collision_objects))))
         except rospy.ServiceException, e:
             rospy.loginfo("Box adder: Service call failed: %s"%e)

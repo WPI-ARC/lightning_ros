@@ -72,18 +72,17 @@ TABLE_LEVEL = 0.7
 class LightningTester:
 
     def __init__(self):
-        self.boxAdder = BoxAdder()
-        self.lightningClient = rospy.ServiceProxy(LIGHTNING_NAME, GetMotionPlan)
+        self.box_adder = BoxAdder()
+        self.lightning_client = rospy.ServiceProxy(LIGHTNING_NAME, GetMotionPlan)
 
     #if the tester is stopped while waiting for planning, then gazebo physics may need to be unpaused
     #to unpause physics, run "rosservice call /gazebo/unpause_physics" in the command line
-    def _doSingleTest(self, s, g, noMovement, groupName, jointNames, controllerName, planningTime):
+    def _do_single_test(self, s, g, no_movement, group_name, joint_names, controller_name, planning_time):
         subprocess.check_call("rosservice call /gazebo/pause_physics", shell=True)
-        request = self._createGetMotionPlanRequest(s, g, groupName, jointNames, planningTime)
+        request = self._create_get_motion_plan_request(s, g, group_name, joint_names, planning_time)
         rospy.wait_for_service(LIGHTNING_NAME)
-        #rospy.loginfo("Lightning tester: sending request for start %s, goal %s" % (s, g)) 
         try:
-            response = self.lightningClient(request)
+            response = self.lightning_client(request)
         except rospy.ServiceException, e:
             rospy.loginfo("Lightning tester: call to lightning failed")
             subprocess.check_call("rosservice call /gazebo/unpause_physics", shell=True)
@@ -95,237 +94,237 @@ class LightningTester:
             return False
         else:
             rospy.loginfo("Lightning tester: got path with start %s, goal %s" % (path[0], path[-1]))
-            if not noMovement:
-                self._stepPathAutomatic(path, controllerName)
+            if not no_movement:
+                self._step_path_automatic(path, controller_name)
             return True
 
-    def _createGetMotionPlanRequest(self, start_point, goal_point, groupName, jointNames, planningTime):
+    def _create_get_motion_plan_request(self, start_point, goal_point, group_name, joint_names, planning_time):
         req = GetMotionPlanRequest()
-        req.motion_plan_request.group_name = groupName
+        req.motion_plan_request.group_name = group_name
 
         req.motion_plan_request.start_state.joint_state.header.stamp = rospy.get_rostime()
-        req.motion_plan_request.start_state.joint_state.name = jointNames
+        req.motion_plan_request.start_state.joint_state.name = joint_names
         req.motion_plan_request.start_state.joint_state.position = start_point
 
         req.motion_plan_request.goal_constraints.joint_constraints = []
-        for i in xrange(len(jointNames)):
+        for i in xrange(len(joint_names)):
             tempConstraint = JointConstraint()
-            tempConstraint.joint_name = jointNames[i]
+            tempConstraint.joint_name = joint_names[i]
             tempConstraint.position = goal_point[i]
             req.motion_plan_request.goal_constraints.joint_constraints.append(tempConstraint)
 
-        req.motion_plan_request.allowed_planning_time = rospy.Duration(planningTime)
+        req.motion_plan_request.allowed_planning_time = rospy.Duration(planning_time)
         return req
 
     #make sure the joint controller is turned off before calling this
-    def moveToJointConfigs(self, controllerName, angles):
-        setModelConfigClient = rospy.ServiceProxy(SET_MODEL_CONFIGURATION, SetModelConfiguration)
+    def move_to_joint_configs(self, controller_name, angles):
+        set_model_config_client = rospy.ServiceProxy(SET_MODEL_CONFIGURATION, SetModelConfiguration)
         req = SetModelConfigurationRequest()
         req.model_name = "pr2"
         req.urdf_param_name = "robot_description"
-        req.joint_names = rospy.get_param("/%s/joints" % (controllerName))
+        req.joint_names = rospy.get_param("/%s/joints" % (controller_name))
         req.joint_positions = angles
         rospy.wait_for_service(SET_MODEL_CONFIGURATION)
-        res = setModelConfigClient(req)
+        res = set_model_config_client(req)
 
-    def switchOffController(self, name):
-        switchOffClient = rospy.ServiceProxy(SWITCH_CONTROLLER, SwitchController)
+    def switch_off_controller(self, name):
+        switch_off_client = rospy.ServiceProxy(SWITCH_CONTROLLER, SwitchController)
         req = SwitchControllerRequest()
         req.stop_controllers.append(name)
         req.strictness = req.BEST_EFFORT
         rospy.wait_for_service(SWITCH_CONTROLLER)
-        res = switchOffClient(req)
+        res = switch_off_client(req)
 
-    def waitForLightning(self):
+    def wait_for_lightning(self):
         rospy.wait_for_service(LIGHTNING_NAME)
 
-    def _doIK(self, px, py, pz, arm):
+    def _do_ik(self, px, py, pz, arm):
         IK_INFO_NAME = "pr2_%s_kinematics/get_ik_solver_info" % (arm)
         IK_NAME = "pr2_%s_kinematics/get_constraint_aware_ik" % (arm)
 
         ik_solver_info_service_proxy = rospy.ServiceProxy(IK_INFO_NAME, GetKinematicSolverInfo)
-        ikInfoReq = GetKinematicSolverInfoRequest()
+        ik_info_req = GetKinematicSolverInfoRequest()
         rospy.wait_for_service(IK_INFO_NAME)
-        ikInfoRes = ik_solver_info_service_proxy(ikInfoReq)
+        ik_info_res = ik_solver_info_service_proxy(ik_info_req)
         
         ik_solver_service_proxy = rospy.ServiceProxy(IK_NAME, GetConstraintAwarePositionIK)
-        ikSolveReq = GetConstraintAwarePositionIKRequest()
-        ikSolveReq.timeout = rospy.Duration(5.0)
-        ikSolveReq.ik_request.ik_link_name = "%s_wrist_roll_link" % (arm[0])
-        ikSolveReq.ik_request.pose_stamped.header.frame_id = "odom_combined"
-        ikSolveReq.ik_request.pose_stamped.pose.position.x = px
-        ikSolveReq.ik_request.pose_stamped.pose.position.y = py
-        ikSolveReq.ik_request.pose_stamped.pose.position.z = pz
-        ikSolveReq.ik_request.pose_stamped.pose.orientation.x = 0.0;
-        ikSolveReq.ik_request.pose_stamped.pose.orientation.y = 0.0;
-        ikSolveReq.ik_request.pose_stamped.pose.orientation.z = 0.0;
-        ikSolveReq.ik_request.pose_stamped.pose.orientation.w = 1.0;
-        ikSolveReq.ik_request.ik_seed_state.joint_state.name = ikInfoRes.kinematic_solver_info.joint_names;
-        for i in xrange(len(ikInfoRes.kinematic_solver_info.joint_names)):
-            ikSolveReq.ik_request.ik_seed_state.joint_state.position.append((ikInfoRes.kinematic_solver_info.limits[i].min_position + ikInfoRes.kinematic_solver_info.limits[i].max_position)/2.0)
+        ik_solve_req = GetConstraintAwarePositionIKRequest()
+        ik_solve_req.timeout = rospy.Duration(5.0)
+        ik_solve_req.ik_request.ik_link_name = "%s_wrist_roll_link" % (arm[0])
+        ik_solve_req.ik_request.pose_stamped.header.frame_id = "odom_combined"
+        ik_solve_req.ik_request.pose_stamped.pose.position.x = px
+        ik_solve_req.ik_request.pose_stamped.pose.position.y = py
+        ik_solve_req.ik_request.pose_stamped.pose.position.z = pz
+        ik_solve_req.ik_request.pose_stamped.pose.orientation.x = 0.0;
+        ik_solve_req.ik_request.pose_stamped.pose.orientation.y = 0.0;
+        ik_solve_req.ik_request.pose_stamped.pose.orientation.z = 0.0;
+        ik_solve_req.ik_request.pose_stamped.pose.orientation.w = 1.0;
+        ik_solve_req.ik_request.ik_seed_state.joint_state.name = ik_info_res.kinematic_solver_info.joint_names;
+        for i in xrange(len(ik_info_res.kinematic_solver_info.joint_names)):
+            ik_solve_req.ik_request.ik_seed_state.joint_state.position.append((ik_info_res.kinematic_solver_info.limits[i].min_position + ik_info_res.kinematic_solver_info.limits[i].max_position)/2.0)
         
         rospy.wait_for_service(IK_NAME)
-        ikSolveRes = ik_solver_service_proxy(ikSolveReq)
-        if ikSolveRes.error_code.val == ikSolveRes.error_code.SUCCESS:
-            return ikSolveRes.solution.joint_state.position
+        ik_solve_res = ik_solver_service_proxy(ik_solve_req)
+        if ik_solve_res.error_code.val == ik_solve_res.error_code.SUCCESS:
+            return ik_solve_res.solution.joint_state.position
         else:
-            rospy.loginfo("Lightning tester: inverse kinematics failed %i", ikSolveRes.error_code.val)
+            rospy.loginfo("Lightning tester: inverse kinematics failed %i", ik_solve_res.error_code.val)
             return []
 
-    def _resetBoxScene(self):
-        self.boxAdder.resetBoxScene()
+    def _reset_box_scene(self):
+        self.box_adder.reset_box_scene()
         return 0
 
-    def _sampleTableScene(self, n, groupName):
-        if groupName == "right_arm":
-            xRange, yRange, z = (0.4, 0.8), (-0.8, 0.2), TABLE_LEVEL
-        elif groupName == "left_arm":
-            xRange, yRange, z = (0.4, 0.8), (-0.2, 0.8), TABLE_LEVEL
+    def _sample_table_scene(self, n, group_name):
+        if group_name == "right_arm":
+            x_range, y_range, z = (0.4, 0.8), (-0.8, 0.2), TABLE_LEVEL
+        elif group_name == "left_arm":
+            x_range, y_range, z = (0.4, 0.8), (-0.2, 0.8), TABLE_LEVEL
         else:
             rospy.loginfo("Lightning test: sample table scene: invalid group name")
             return 0
-        boxPositions = []
+        box_positions = []
         counter = 0
-        while len(boxPositions) < n:
-            newPosition = (xRange[0]+random()*(xRange[1]-xRange[0]), yRange[0]+random()*(yRange[1]-yRange[0]), z)
-            if not self._inCollision(newPosition, boxPositions):
-                boxPositions.append(newPosition)
+        while len(box_positions) < n:
+            new_position = (x_range[0]+random()*(x_range[1]-x_range[0]), y_range[0]+random()*(y_range[1]-y_range[0]), z)
+            if not self._in_collision(new_position, box_positions):
+                box_positions.append(new_position)
             counter += 1
             if counter > 200: #if tried too many times to get a set of boxes, then reset and try again
                 counter = 0
-                boxPositions = []
+                box_positions = []
                 rospy.loginfo("Lightning tester: trying to sample boxes again")
-        self.boxAdder.setTableScene(boxPositions)
+        self.box_adder.set_table_scene(box_positions)
         return 0
 
-    def _inCollision(self, box, boxes):
+    #check if box is in collision with boxes
+    def _in_collision(self, box, boxes):
         size = SMALL_BOX_SIZE
         for b in boxes:
             if abs(b[0]-box[0]) < size or abs(b[1]-box[1]) < size:
                 return True
         return False
 
-    def _stepPathManual(self, path, controllerName):
+    def _step_path_manual(self, path, controller_name):
         index = 0
-        moveNum = 1
+        move_num = 1
         while index < len(path):
             move = raw_input("Point %i of %i (enter nothing to repeat last step or type f to finish): " % (index, len(path)))
             if move != "":
                 if move == 'f':
-                    moveNum = len(path)
+                    move_num = len(path)
                 else:
                     try:
-                        moveNum = int(move)
+                        move_num = int(move)
                     except ValueError:
                         rospy.loginfo("Invalid input")
                         continue
-            if moveNum > 0:
-                for i in xrange(moveNum):
+            if move_num > 0:
+                for i in xrange(move_num):
                     if index < len(path):
-                        self.moveToJointConfigs(controllerName, path[index])
+                        self.move_to_joint_configs(controller_name, path[index])
                         index += 1
                         rospy.sleep(0.005)
                     else:
                         break
-            elif moveNum < 0:
-                for i in xrange(0, moveNum, -1):
+            elif move_num < 0:
+                for i in xrange(0, move_num, -1):
                     if index > 0:
                         index -= 1
-                        self.moveToJointConfigs(controllerName, path[index])
+                        self.move_to_joint_configs(controller_name, path[index])
                         rospy.sleep(0.005)
                     else:
                         break
 
-    def _stepPathAutomatic(self, path, controllerName):
+    def _step_path_automatic(self, path, controller_name):
         for point in path:
-            self.moveToJointConfigs(controllerName, point)
+            self.move_to_joint_configs(controller_name, point)
             rospy.sleep(0.005)
 
-    def _sampleBoxGoal(self, arm, yOffset=0):
+    def _sample_box_goal(self, arm, y_offset=0):
         if arm == "right_arm":
-            xRange, yRange, zRange = (0.55, 0.7), (-0.2, 0.2), (0.8, 1.1)
+            x_range, y_range, z_range = (0.55, 0.7), (-0.2, 0.2), (0.8, 1.1)
         elif arm == "left_arm":
-            xRange, yRange, zRange = (0.55, 0.7), (-0.2, 0.2), (0.8, 1.1)
+            x_range, y_range, z_range = (0.55, 0.7), (-0.2, 0.2), (0.8, 1.1)
         else:
-            rospy.loginfo("Lightning test: sample box goal: invalid group name: %s" % (groupName))
+            rospy.loginfo("Lightning test: sample box goal: invalid group name: %s" % (group_name))
             return []
-        randX = xRange[0]+(xRange[1]-xRange[0])*random()
-        randY = yOffset+yRange[0]+(yRange[1]-yRange[0])*random()
-        randZ = zRange[0]+(zRange[1]-zRange[0])*random()
-        #rospy.loginfo("Lightning tester: sampled pose: %s" % (str((randX, randY, randZ))))
-        return list(self._doIK(randX, randY, randZ, arm))
+        rand_x = x_range[0]+(x_range[1]-x_range[0])*random()
+        rand_y = y_offset+y_range[0]+(y_range[1]-y_range[0])*random()
+        rand_z = z_range[0]+(z_range[1]-z_range[0])*random()
+        return list(self._do_ik(rand_x, rand_y, rand_z, arm))
 
-    def _sampleTableGoal(self, arm, yOffset=0):
+    def _sample_table_goal(self, arm, y_offset=0):
         if arm == "right_arm":
-            xRange, yRange, z = (0.4, 0.8), (-0.6, -0.1), TABLE_LEVEL+0.02
+            x_range, y_range, z = (0.4, 0.8), (-0.6, -0.1), TABLE_LEVEL+0.02
         elif arm == "left_arm":
-            xRange, yRange, z = (0.4, 0.8), (0.1, 0.6), TABLE_LEVEL+0.02
+            x_range, y_range, z = (0.4, 0.8), (0.1, 0.6), TABLE_LEVEL+0.02
         else:
-            rospy.loginfo("Lightning test: sample table goal: invalid group name: %s" % (groupName))
+            rospy.loginfo("Lightning test: sample table goal: invalid group name: %s" % (group_name))
             return []
-        randX = xRange[0]+(xRange[1]-xRange[0])*random()
-        randY = yRange[0]+(yRange[1]-yRange[0])*random()
-        return list(self._doIK(randX, randY+yOffset, z, arm))
+        rand_x = x_range[0]+(x_range[1]-x_range[0])*random()
+        rand_y = y_range[0]+(y_range[1]-y_range[0])*random()
+        return list(self._do_ik(rand_x, rand_y+y_offset, z, arm))
 
     #make sure to turn off the arm controller before calling runIterations
-    def _runIterationsCommon(self, s, n, sampleBoxFunc, sampleGoalFunc, noMovement, waitingTime, groupName, jointNames, controllerName, planningTime):
+    def _run_iterations_common(self, s, n, sample_box_func, sample_goal_func, no_movement, waiting_time, group_name, joint_names, controller_name, planning_time):
         rospy.loginfo("Lightning tester: number of test iterations = %i" % (n))
-        self.moveToJointConfigs(controllerName, s)
-        maxCounter = 100
+        self.move_to_joint_configs(controller_name, s)
+        max_counter = 100
         i = 0
         while i < n:
             rospy.loginfo("On iteration %i" % (i))
             rospy.loginfo("Trying new setup")
             counter = 0
-            if not noMovement:
-                self.moveToJointConfigs(controllerName, s)
-            yOffset = sampleBoxFunc()
-            goal = sampleGoalFunc(groupName, yOffset)
-            while len(goal) == 0 and counter < maxCounter:
+            if not no_movement:
+                self.move_to_joint_configs(controller_name, s)
+            y_offset = sample_box_func()
+            goal = sample_goal_func(group_name, y_offset)
+            while len(goal) == 0 and counter < max_counter:
                 rospy.loginfo("got goal")
-                goal = sampleGoalFunc(groupName, yOffset)
+                goal = sample_goal_func(group_name, y_offset)
                 counter += 1
-            if counter < maxCounter:
+            if counter < max_counter:
                 rospy.loginfo("Lightning tester: goal = %s" % (str(goal)))
-                foundPath = self._doSingleTest(s, goal, noMovement, groupName, jointNames, controllerName, planningTime)
-                if foundPath:
+                found_path = self._do_single_test(s, goal, no_movement, group_name, joint_names, controller_name, planning_time)
+                if found_path:
                     i += 1
                 rospy.loginfo("Lightning tester: waiting...")
-                time.sleep(waitingTime)
+                time.sleep(waiting_time)
                 rospy.loginfo("Lightning tester: done waiting")
 
-    def runIterationsBox(self, s, n, noMovement, groupName, jointNames, controllerName, planningTime=60.0, waitingTime=5.0):
-        self._runIterationsCommon(s, n, self._resetBoxScene, self._sampleBoxGoal, noMovement, waitingTime, groupName, jointNames, controllerName)
+    def run_iterations_box(self, s, n, no_movement, group_name, joint_names, controller_name, planning_time=60.0, waiting_time=5.0):
+        self._run_iterations_common(s, n, self._reset_box_scene, self._sample_box_goal, no_movement, waiting_time, group_name, joint_names, controller_name, planning_time)
 
-    def runIterationsTable(self, s, n, noMovement, groupName, jointNames, controllerName, planningTime=60.0, waitingTime=5.0, numBoxes=4):
-        sampleBoxFunc = (lambda: self._sampleTableScene(numBoxes, groupName))
-        self._runIterationsCommon(s, n, sampleBoxFunc, self._sampleTableGoal, noMovement, waitingTime, groupName, jointNames, controllerName, planningTime)
+    def run_iterations_table(self, s, n, no_movement, group_name, joint_names, controller_name, planning_time=60.0, waiting_time=5.0, numBoxes=4):
+        sample_box_func = (lambda: self._sample_table_scene(numBoxes, group_name))
+        self._run_iterations_common(s, n, sample_box_func, self._sample_table_goal, no_movement, waiting_time, group_name, joint_names, controller_name, planning_time)
 
 if __name__ == "__main__":
     try:
         rospy.init_node("run_test")
         rospy.loginfo("Lightning test: starting")
         tester = LightningTester()
-        tester.waitForLightning()
+        tester.wait_for_lightning()
 
         right_start = [-1.5777, 1.2081, -0.0126, -1.2829, -1.5667, -1.5655, 1.64557]
-        tester.switchOffController(RIGHT_ARM_JOINT_CONTROLLER)
-        tester.moveToJointConfigs(RIGHT_ARM_JOINT_CONTROLLER, right_start)
+        tester.switch_off_controller(RIGHT_ARM_JOINT_CONTROLLER)
+        tester.move_to_joint_configs(RIGHT_ARM_JOINT_CONTROLLER, right_start)
 
         left_start = [1.5777, 1.2081, -0.0126, -1.2829, 1.5667, -1.5655, 1.64557]
-        tester.switchOffController(LEFT_ARM_JOINT_CONTROLLER)
-        tester.moveToJointConfigs(LEFT_ARM_JOINT_CONTROLLER, left_start)
+        tester.switch_off_controller(LEFT_ARM_JOINT_CONTROLLER)
+        tester.move_to_joint_configs(LEFT_ARM_JOINT_CONTROLLER, left_start)
         
         if len(sys.argv) >= 4 and sys.argv[1].find("table") == 0 and sys.argv[2] == "right":
-            tester.runIterationsTable(right_start, int(sys.argv[3]), False, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planningTime=20.0, waitingTime=1.0)
+            tester.run_iterations_table(right_start, int(sys.argv[3]), False, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planning_time=20.0, waiting_time=1.0)
         elif len(sys.argv) >= 4 and sys.argv[1].find("box") == 0 and sys.argv[2] == "right":
-            tester.runIterationsBox(right_start, int(sys.argv[3]), False, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planningTime=20.0, waitingTime=1.0)
+            tester.run_iterations_box(right_start, int(sys.argv[3]), False, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planning_time=20.0, waiting_time=1.0)
         elif len(sys.argv) >= 4 and sys.argv[1].find("table") == 0 and sys.argv[2] == "left":
-            tester.runIterationsTable(left_start, int(sys.argv[3]), False, "left_arm", LEFT_ARM_JOINT_NAMES, LEFT_ARM_JOINT_CONTROLLER, planningTime=20.0, waitingTime=1.0)
+            tester.run_iterations_table(left_start, int(sys.argv[3]), False, "left_arm", LEFT_ARM_JOINT_NAMES, LEFT_ARM_JOINT_CONTROLLER, planning_time=20.0, waiting_time=1.0)
         elif len(sys.argv) >= 4 and sys.argv[1].find("box") == 0 and sys.argv[2] == "left":
-            tester.runIterationsBox(left_start, int(sys.argv[3]), False, "left_arm", LEFT_ARM_JOINT_NAMES, LEFT_ARM_JOINT_CONTROLLER, planningTime=20.0, waitingTime=1.0)
+            tester.run_iterations_box(left_start, int(sys.argv[3]), False, "left_arm", LEFT_ARM_JOINT_NAMES, LEFT_ARM_JOINT_CONTROLLER, planning_time=20.0, waiting_time=1.0)
         elif len(sys.argv) >= 3 and sys.argv[1].find("test") == 0:
-            tester.runIterationsBox(right_start, int(sys.argv[2]), True, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planningTime=20.0, waitingTime=1.0)
+            tester.run_iterations_box(right_start, int(sys.argv[2]), True, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planning_time=20.0, waiting_time=1.0)
         else:
             rospy.loginfo("Lightning tester: nothing to do")
     except rospy.ROSInterruptException:

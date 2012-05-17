@@ -127,10 +127,8 @@ bool CollisionChecker::checkMiddleAndReturnPoints(const std::vector<double> &fir
 
 bool CollisionChecker::isStateValid(const planning_models::KinematicState &state) {
     if (!state.areJointsWithinBounds(joint_names_)) {
-        //ROS_ERROR("Collision checker: state is outside of joint limits");
         return false;
     } else if (collision_models_interface_->isKinematicStateInCollision(state)) {
-        //ROS_ERROR("Collision checker: state is in collision");
         return false;
     } else {
         return true;

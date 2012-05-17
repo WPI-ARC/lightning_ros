@@ -53,68 +53,68 @@ STOP_PFS_NAME = "stop_all_pfs";
 
 class PFSNode:
     def __init__(self):
-        self.planTrajectoryWrapper = PlanTrajectoryWrapper("pfs")
-        self.stopLock = threading.Lock()
-        self.currentJointNames = []
-        self.currentGroupName = ""
-        self._setStopValue(True)
-        self.PFSServer = actionlib.SimpleActionServer(PFS_NODE_NAME, PFSAction, execute_cb=self.getPath, auto_start=False)
-        self.PFSServer.start()
-        self.stopPFSSubscriber = rospy.Subscriber(STOP_PFS_NAME, StopPlanning, self.stopPFSPlanner)
-        self.stopPFSPlannerPublisher = rospy.Publisher(STOP_PLANNER_NAME, StopPlanning)
+        self.plan_trajectory_wrapper = PlanTrajectoryWrapper("pfs")
+        self.stop_lock = threading.Lock()
+        self.current_joint_names = []
+        self.current_group_name = ""
+        self._set_stop_value(True)
+        self.pfs_server = actionlib.SimpleActionServer(PFS_NODE_NAME, PFSAction, execute_cb=self._get_path, auto_start=False)
+        self.pfs_server.start()
+        self.stop_pfs_subscriber = rospy.Subscriber(STOP_PFS_NAME, StopPlanning, self._stop_pfs_planner)
+        self.stop_pfs_planner_publisher = rospy.Publisher(STOP_PLANNER_NAME, StopPlanning)
 
-    def _getStopValue(self):
-        self.stopLock.acquire()
+    def _get_stop_value(self):
+        self.stop_lock.acquire()
         ret = self.stop
-        self.stopLock.release()
+        self.stop_lock.release()
         return ret
 
-    def _setStopValue(self, val):
-        self.stopLock.acquire()
+    def _set_stop_value(self, val):
+        self.stop_lock.acquire()
         self.stop = val
-        self.stopLock.release()
+        self.stop_lock.release()
 
-    def _callPlanner(self, start, goal, planningTime):
+    def _call_planner(self, start, goal, planning_time):
         rospy.loginfo("PFS action server: acquiring planner")
-        plannerNumber = self.planTrajectoryWrapper.acquirePlanner()
+        planner_number = self.plan_trajectory_wrapper.acquire_planner()
         rospy.loginfo("PFS action server: got a planner")
-        ret = self.planTrajectoryWrapper.planTrajectory(start, goal, plannerNumber, self.currentJointNames, self.currentGroupName, planningTime)
-        self.planTrajectoryWrapper.releasePlanner(plannerNumber)
+        ret = self.plan_trajectory_wrapper.plan_trajectory(start, goal, planner_number, self.current_joint_names, self.current_group_name, planning_time)
+        self.plan_trajectory_wrapper.release_planner(planner_number)
         rospy.loginfo("PFS action server: releasing planner")
         return ret
 
-    def getPath(self, actionGoal):
-        self._setStopValue(False)
+    def _get_path(self, action_goal):
+        self._set_stop_value(False)
         rospy.loginfo("PFS action server: PFS got an action goal")
         res = PFSResult()
-        s, g = actionGoal.start, actionGoal.goal
+        s, g = action_goal.start, action_goal.goal
         res.status.status = res.status.FAILURE
-        self.currentJointNames = actionGoal.joint_names
-        self.currentGroupName = actionGoal.group_name
-        if not self._getStopValue():
-            unfiltered = self._callPlanner(s, g, actionGoal.allowed_planning_time)
+        self.current_joint_names = action_goal.joint_names
+        self.current_group_name = action_goal.group_name
+        if not self._get_stop_value():
+            unfiltered = self._call_planner(s, g, action_goal.allowed_planning_time.to_sec())
             if unfiltered is None:
-                self.PFSServer.set_succeeded(res)
+                self.pfs_server.set_succeeded(res)
                 return
         else:
             rospy.loginfo("PFS action server: PFS was stopped before it started planning")
-            self.PFSServer.set_succeeded(res)
+            self.pfs_server.set_succeeded(res)
             return
 
-        if not self._getStopValue():
+        if not self._get_stop_value():
             res.status.status = res.status.SUCCESS
             res.path = [Float64Array(p) for p in unfiltered]
-            self.PFSServer.set_succeeded(res)
+            self.pfs_server.set_succeeded(res)
             return
         else:
             rospy.loginfo("PFS action server: PFS found a path but RR succeeded first")
-            self.PFSServer.set_succeeded(res)
+            self.pfs_server.set_succeeded(res)
             return
 
-    def stopPFSPlanner(self, msg):
-        self._setStopValue(True)
+    def _stop_pfs_planner(self, msg):
+        self._set_stop_value(True)
         rospy.loginfo("PFS action server: PFS node got a stop message")
-        self.stopPFSPlannerPublisher.publish(msg)
+        self.stop_pfs_planner_publisher.publish(msg)
 
 if __name__ == "__main__":
     try:

@@ -54,53 +54,53 @@ PLANNER_NAME = "plan_kinematic_path"
 
 class PlanTrajectoryWrapper:
 
-    def __init__(self, nodeType, numPlanners=1):
-        self.PLANNERS = ["/%s_planner_node%i/%s" % (nodeType, i, PLANNER_NAME) for i in xrange(numPlanners)]
-        rospy.loginfo("Initializaing %i planners for %s" % (numPlanners, nodeType))
-        self.plannerAvailable = [True for i in xrange(numPlanners)]
-        self.plannerLock = threading.Lock()
-        self.releasedEvent = threading.Event()
-        self.releasedEvent.set()
+    def __init__(self, node_type, num_planners=1):
+        self.planners = ["/%s_planner_node%i/%s" % (node_type, i, PLANNER_NAME) for i in xrange(num_planners)]
+        rospy.loginfo("Initializaing %i planners for %s" % (num_planners, node_type))
+        self.planners_available = [True for i in xrange(num_planners)]
+        self.planner_lock = threading.Lock()
+        self.released_event = threading.Event()
+        self.released_event.set()
 
-    #need to call acquirePlanner before calling planTrajectory
-    def acquirePlanner(self):
-        plannerNumber = self._waitForPlanner()
-        while plannerNumber == -1:
-            self.releasedEvent.wait()
-            plannerNumber = self._waitForPlanner()
-        return plannerNumber
+    #need to call acquire_planner before calling plan_trajectory
+    def acquire_planner(self):
+        planner_number = self._wait_for_planner()
+        while planner_number == -1:
+            self.released_event.wait()
+            planner_number = self._wait_for_planner()
+        return planner_number
    
-    #need to call releasePlanner after done calling planTrajectory
-    def releasePlanner(self, index):
-        self.plannerLock.acquire()
-        self.plannerAvailable[index] = True
-        self.releasedEvent.set()
-        self.plannerLock.release()
+    #need to call release_planner after done calling plan_trajectory
+    def release_planner(self, index):
+        self.planner_lock.acquire()
+        self.planners_available[index] = True
+        self.released_event.set()
+        self.planner_lock.release()
 
-    def _waitForPlanner(self):
-        self.plannerLock.acquire()
-        acquiredPlanner = -1
-        for i, val in enumerate(self.plannerAvailable):
+    def _wait_for_planner(self):
+        self.planner_lock.acquire()
+        acquired_planner = -1
+        for i, val in enumerate(self.planners_available):
             if val:
-                self.plannerAvailable[i] = False
-                if not any(self.plannerAvailable):
-                    self.releasedEvent.clear()
-                acquiredPlanner = i
+                self.planners_available[i] = False
+                if not any(self.planners_available):
+                    self.released_event.clear()
+                acquired_planner = i
                 break
-        self.plannerLock.release()
-        return acquiredPlanner
+        self.planner_lock.release()
+        return acquired_planner
 
     #planner to get new trajectory from start_point to goal_point
-    #plannerNumber is the number received from acquirePlanner
-    def planTrajectory(self, start_point, goal_point, plannerNumber, joint_names, groupName, planningTime, plannerConfigName="RRTConnectkConfig1"):
-        plannerClient = rospy.ServiceProxy(self.PLANNERS[plannerNumber], GetMotionPlan)
-        rospy.loginfo("Plan Trajectory Wrapper: got a planTrajectory request for %s with start = %s and goal = %s" % (self.PLANNERS[plannerNumber], start_point, goal_point))
+    #planner_number is the number received from acquire_planner
+    def plan_trajectory(self, start_point, goal_point, planner_number, joint_names, group_name, planning_time, planner_config_name="RRTConnectkConfig1"):
+        planner_client = rospy.ServiceProxy(self.planners[planner_number], GetMotionPlan)
+        rospy.loginfo("Plan Trajectory Wrapper: got a plan_trajectory request for %s with start = %s and goal = %s" % (self.planners[planner_number], start_point, goal_point))
         req = GetMotionPlanRequest()
         req.motion_plan_request.workspace_parameters.workspace_region_pose.header.stamp = rospy.get_rostime()
-        req.motion_plan_request.group_name = groupName
+        req.motion_plan_request.group_name = group_name
         req.motion_plan_request.num_planning_attempts = 1
-        req.motion_plan_request.allowed_planning_time = rospy.Duration(planningTime)
-        req.motion_plan_request.planner_id = plannerConfigName #using RRT planner by default
+        req.motion_plan_request.allowed_planning_time = rospy.Duration(planning_time)
+        req.motion_plan_request.planner_id = planner_config_name #using RRT planner by default
 
         req.motion_plan_request.start_state.joint_state.header.stamp = rospy.get_rostime()
         req.motion_plan_request.start_state.joint_state.name = joint_names
@@ -108,56 +108,55 @@ class PlanTrajectoryWrapper:
 
         req.motion_plan_request.goal_constraints.joint_constraints = []
         for i in xrange(len(joint_names)):
-            tempConstraint = JointConstraint()
-            tempConstraint.joint_name = joint_names[i]
-            tempConstraint.position = goal_point[i]
-            req.motion_plan_request.goal_constraints.joint_constraints.append(tempConstraint)
+            temp_constraint = JointConstraint()
+            temp_constraint.joint_name = joint_names[i]
+            temp_constraint.position = goal_point[i]
+            req.motion_plan_request.goal_constraints.joint_constraints.append(temp_constraint)
 
         #call the planner
-        rospy.wait_for_service(self.PLANNERS[plannerNumber])
-        rospy.loginfo("Plan Trajectory Wrapper: sent request to service %s" % plannerClient.resolved_name)
+        rospy.wait_for_service(self.planners[planner_number])
+        rospy.loginfo("Plan Trajectory Wrapper: sent request to service %s" % planner_client.resolved_name)
         try:
-            response = plannerClient(req)
+            response = planner_client(req)
         except rospy.ServiceException, e:
             rospy.loginfo("Plan Trajectory Wrapper: service call failed: %s"%e)
             return None
 
-        rospy.loginfo("Plan Trajectory Wrapper: %s returned" % (self.PLANNERS[plannerNumber]))
+        rospy.loginfo("Plan Trajectory Wrapper: %s returned" % (self.planners[planner_number]))
         if response.error_code.val == response.error_code.SUCCESS:
-            #rospy.loginfo([pt.time_from_start for pt in response.trajectory.joint_trajectory.points])
             return [pt.positions for pt in response.trajectory.joint_trajectory.points]
         else:
-            rospy.loginfo("Plan Trajectory Wrapper: service call to %s was unsuccessful" % plannerClient.resolved_name)
+            rospy.loginfo("Plan Trajectory Wrapper: service call to %s was unsuccessful" % planner_client.resolved_name)
             return None
 
 class ShortcutPathWrapper:
 
-    def shortcutPath(self, origPath, groupName):
-        shortcutPathClient = rospy.ServiceProxy(SHORTCUT_PATH_NAME, PathShortcut)
-        shortcutReq = PathShortcutRequest()
-        shortcutReq.path = [Float64Array(p) for p in origPath]
-        shortcutReq.group_name = groupName
+    def shortcut_path(self, original_path, group_name):
+        shortcut_path_client = rospy.ServiceProxy(SHORTCUT_PATH_NAME, PathShortcut)
+        shortcut_req = PathShortcutRequest()
+        shortcut_req.path = [Float64Array(p) for p in original_path]
+        shortcut_req.group_name = group_name
         rospy.wait_for_service(SHORTCUT_PATH_NAME)
-        response = shortcutPathClient(shortcutReq)
+        response = shortcut_path_client(shortcut_req)
         return [p.values for p in response.new_path]
 
 class InvalidSectionWrapper:
 
-    def getInvalidSectionsForPath(self, origPath, groupName):
-        section = self.getInvalidSectionsForPaths([origPath], groupName)
+    def get_invalid_sections_for_path(self, original_path, group_name):
+        section = self.get_invalid_sections_for_paths([original_path], group_name)
         if len(section) > 0:
             return section[0]
         else:
             return None
 
-    def getInvalidSectionsForPaths(self, orig_paths, groupName):
-        collisionCheckClient = rospy.ServiceProxy(COLLISION_CHECK, CollisionCheck)
-        ccReq = CollisionCheckRequest();
-        ccReq.paths = [Float64Array2D([Float64Array(point) for point in path]) for path in orig_paths];
-        ccReq.group_name = groupName
+    def get_invalid_sections_for_paths(self, orig_paths, group_name):
+        collision_check_client = rospy.ServiceProxy(COLLISION_CHECK, CollisionCheck)
+        cc_req = CollisionCheckRequest();
+        cc_req.paths = [Float64Array2D([Float64Array(point) for point in path]) for path in orig_paths];
+        cc_req.group_name = group_name
         rospy.loginfo("Plan Trajectory Wrapper: sending request to collision checker")
         rospy.wait_for_service(COLLISION_CHECK)
-        response = collisionCheckClient(ccReq);
+        response = collision_check_client(cc_req);
         return [[sec.values for sec in individualPathSections.points] for individualPathSections in response.invalid_sections];
 
 class DrawPointsWrapper:
@@ -177,27 +176,27 @@ class DrawPointsWrapper:
     POSES = "poses"
     
     def __init__(self):
-        self.displayPointsPublisher = rospy.Publisher(DISPLAY_POINTS, DrawPoints)
+        self.display_points_publisher = rospy.Publisher(DISPLAY_POINTS, DrawPoints)
 
-    def drawPoints(self, path, modelGroupName, pointGroupName, pointType, rgb, displayDensity, pointRadius=0.03):
-        drawMessage = DrawPoints()
-        drawMessage.points = [Float64Array(p) for p in path]
-        drawMessage.model_group_name = modelGroupName
-        drawMessage.point_group_name = pointGroupName
-        drawMessage.point_type = drawMessage.POINT_TYPE_ANGLES if pointType == DrawPointsWrapper.ANGLES else drawMessage.POINT_TYPE_POSES
-        drawMessage.display_density = displayDensity
-        drawMessage.red, drawMessage.green, drawMessage.blue = rgb
-        drawMessage.action = drawMessage.ACTION_ADD
-        drawMessage.point_radius = pointRadius
-        self.displayPointsPublisher.publish(drawMessage)
+    def draw_points(self, path, model_group_name, point_group_name, point_type, rgb, display_density, point_radius=0.03):
+        draw_message = DrawPoints()
+        draw_message.points = [Float64Array(p) for p in path]
+        draw_message.model_group_name = model_group_name
+        draw_message.point_group_name = point_group_name
+        draw_message.point_type = draw_message.POINT_TYPE_ANGLES if point_type == DrawPointsWrapper.ANGLES else draw_message.POINT_TYPE_POSES
+        draw_message.display_density = display_density
+        draw_message.red, draw_message.green, draw_message.blue = rgb
+        draw_message.action = draw_message.ACTION_ADD
+        draw_message.point_radius = point_radius
+        self.display_points_publisher.publish(draw_message)
 
-    def clearPoints(self):
-        drawMessage = DrawPoints()
-        drawMessage.action = drawMessage.ACTION_CLEAR
-        self.displayPointsPublisher.publish(drawMessage)
+    def clear_points(self):
+        draw_message = DrawPoints()
+        draw_message.action = draw_message.ACTION_CLEAR
+        self.display_points_publisher.publish(draw_message)
 
 if __name__ == "__main__":
     if len(sys.argv) == 8:
         isw = InvalidSectionWrapper()
         path = [float(sys.argv[i]) for i in xrange(1, len(sys.argv))]
-        print isw.getInvalidSectionsForPath([path])
+        print isw.get_invalid_sections_for_path([path])

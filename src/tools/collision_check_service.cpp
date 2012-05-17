@@ -160,7 +160,6 @@ class CollisionCheckService {
         int num_joints_;
 
         planning_environment::CollisionModels *getCMPtr(int index) {
-            //does this need a lock?
             return collision_models_[index];
         }
 
@@ -256,10 +255,8 @@ class CollisionCheckService {
             state->setKinematicState(pos);
             
             if (!state->areJointsWithinBounds(joint_names_)) {
-                //ROS_ERROR("Collision checker: state is outside of joint limits");
                 return false;
             } else if (getCMPtr(index)->isKinematicStateInCollision(*state)) {
-                //ROS_ERROR("Collision checker: state is in collision");
                 return false;
             } else {
                 return true;

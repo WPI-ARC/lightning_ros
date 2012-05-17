@@ -61,231 +61,231 @@ STATE_RETRIEVE, STATE_REPAIR, STATE_RETURN_PATH, STATE_FINISHED, STATE_FINISHED 
 
 class RRNode:
     def __init__(self):
-        self.robotName = rospy.get_param("robot_name")
-        self.currentJointNames = []
-        self.currentGroupName = ""
-        self.planTrajectoryWrapper = PlanTrajectoryWrapper("rr", int(rospy.get_param("~num_rr_planners")))
-        self.invalidSectionWrapper = InvalidSectionWrapper()
-        self.pathLibrary = PathLibrary(rospy.get_param("~path_library_dir"), rospy.get_param("step_size"), nodeSize=int(rospy.get_param("~path_library_path_node_size")), sgNodeSize=int(rospy.get_param("~path_library_sg_node_size")), dtwDist=float(rospy.get_param("~dtw_distance")))
-        self.numPathsChecked = int(rospy.get_param("~num_paths_to_collision_check"))
-        self.stopLock = threading.Lock()
+        self.robot_name = rospy.get_param("robot_name")
+        self.current_joint_names = []
+        self.current_group_name = ""
+        self.plan_trajectory_wrapper = PlanTrajectoryWrapper("rr", int(rospy.get_param("~num_rr_planners")))
+        self.invalid_section_wrapper = InvalidSectionWrapper()
+        self.path_library = PathLibrary(rospy.get_param("~path_library_dir"), rospy.get_param("step_size"), node_size=int(rospy.get_param("~path_library_path_node_size")), sg_node_size=int(rospy.get_param("~path_library_sg_node_size")), dtw_dist=float(rospy.get_param("~dtw_distance")))
+        self.num_paths_checked = int(rospy.get_param("~num_paths_to_collision_check"))
+        self.stop_lock = threading.Lock()
         self.stop = True
-        self.RRServer = actionlib.SimpleActionServer(RR_NODE_NAME, RRAction, execute_cb=self.retrieveRepair, auto_start=False)
-        self.RRServer.start()
-        self.stopRRSubscriber = rospy.Subscriber(STOP_RR_NAME, StopPlanning, self.stopRRPlanner)
-        self.stopRRPlannerPublisher = rospy.Publisher(STOP_PLANNER_NAME, StopPlanning)
-        self.manageLibraryServer = rospy.Service(MANAGE_LIBRARY, ManagePathLibrary, self.doManageAction)
-        self.repairedSectionsLock = threading.Lock()
-        self.repairedSections = []
-        self.workingLock = threading.Lock() #to ensure that node is not doing RR and doing a library management action at the same time
+        self.rr_server = actionlib.SimpleActionServer(RR_NODE_NAME, RRAction, execute_cb=self._retrieve_repair, auto_start=False)
+        self.rr_server.start()
+        self.stop_rr_subscriber = rospy.Subscriber(STOP_RR_NAME, StopPlanning, self._stop_rr_planner)
+        self.stop_rr_planner_publisher = rospy.Publisher(STOP_PLANNER_NAME, StopPlanning)
+        self.manage_library_service = rospy.Service(MANAGE_LIBRARY, ManagePathLibrary, self._do_manage_action)
+        self.repaired_sections_lock = threading.Lock()
+        self.repaired_sections = []
+        self.working_lock = threading.Lock() #to ensure that node is not doing RR and doing a library management action at the same time
         
-        #if drawPoints is True, then display points in rviz
-        self.drawPoints = rospy.get_param("draw_points")
-        if self.drawPoints:
-            self.drawPointsWrapper = DrawPointsWrapper()
+        #if draw_points is True, then display points in rviz
+        self.draw_points = rospy.get_param("draw_points")
+        if self.draw_points:
+            self.draw_points_wrapper = DrawPointsWrapper()
 
-    def _setRepairedSection(self, index, section):
-        self.repairedSectionsLock.acquire()
-        self.repairedSections[index] = section
-        self.repairedSectionsLock.release()
+    def _set_repaired_section(self, index, section):
+        self.repaired_sections_lock.acquire()
+        self.repaired_sections[index] = section
+        self.repaired_sections_lock.release()
 
-    def _callPlanner(self, start, goal, planningTime):
+    def _call_planner(self, start, goal, planning_time):
         ret = None
-        plannerNumber = self.planTrajectoryWrapper.acquirePlanner()
-        if not self._needToStop():
-            ret = self.planTrajectoryWrapper.planTrajectory(start, goal, plannerNumber, self.currentJointNames, self.currentGroupName, planningTime)
-        self.planTrajectoryWrapper.releasePlanner(plannerNumber)
+        planner_number = self.plan_trajectory_wrapper.acquirePlanner()
+        if not self._need_to_stop():
+            ret = self.plan_trajectory_wrapper.plan_trajectory(start, goal, planner_number, self.current_joint_names, self.current_group_name, planning_time)
+        self.plan_trajectory_wrapper.release_planner(planner_number)
         return ret
 
-    def _threadActivity(self, index, start, goal, startIndex, goalIndex, planningTime):
-        repairedPath = self._callPlanner(start, goal, planningTime)
-        if self.drawPoints:
-            if repairedPath is not None and len(repairedPath) > 0:
-                rospy.loginfo("RR action server: got repaired section with start = %s, goal = %s" % (repairedPath[0], repairedPath[-1]))
-                self.drawPointsWrapper.drawPoints(repairedPath, self.currentGroupName, "repaired"+str(startIndex)+"_"+str(goalIndex), DrawPointsWrapper.ANGLES, DrawPointsWrapper.GREENBLUE, 1.0, 0.01)
+    def _repair_thread(self, index, start, goal, start_index, goal_index, planning_time):
+        repaired_path = self._call_planner(start, goal, planning_time)
+        if self.draw_points:
+            if repaired_path is not None and len(repaired_path) > 0:
+                rospy.loginfo("RR action server: got repaired section with start = %s, goal = %s" % (repaired_path[0], repaired_path[-1]))
+                self.draw_points_wrapper.draw_points(repaired_path, self.current_group_name, "repaired"+str(start_index)+"_"+str(goal_index), DrawPointsWrapper.ANGLES, DrawPointsWrapper.GREENBLUE, 1.0, 0.01)
         else:
-            if self.drawPoints:
-                rospy.loginfo("RR action server: path repair for section (%i, %i) failed, start = %s, goal = %s" % (startIndex, goalIndex, start, goal))
-                self.drawPointsWrapper.drawPoints([start, goal], self.currentGroupName, "failed_repair"+str(startIndex)+"_"+str(goalIndex), DrawPointsWrapper.ANGLES, DrawPointsWrapper.GREENBLUE, 1.0)
-        if self._needToStop():
-            self._setRepairedSection(index, None)
+            if self.draw_points:
+                rospy.loginfo("RR action server: path repair for section (%i, %i) failed, start = %s, goal = %s" % (start_index, goal_index, start, goal))
+                self.draw_points_wrapper.draw_points([start, goal], self.current_group_name, "failed_repair"+str(start_index)+"_"+str(goal_index), DrawPointsWrapper.ANGLES, DrawPointsWrapper.GREENBLUE, 1.0)
+        if self._need_to_stop():
+            self._set_repaired_section(index, None)
         else:
-            self._setRepairedSection(index, repairedPath)
+            self._set_repaired_section(index, repaired_path)
 
-    def _needToStop(self):
-        self.stopLock.acquire();
+    def _need_to_stop(self):
+        self.stop_lock.acquire();
         ret = self.stop;
-        self.stopLock.release();
+        self.stop_lock.release();
         return ret;
 
-    def _setStopValue(self, val):
-        self.stopLock.acquire();
+    def _set_stop_value(self, val):
+        self.stop_lock.acquire();
         self.stop = val;
-        self.stopLock.release();
+        self.stop_lock.release();
 
-    def _doRetrievedPathDrawing(self, projected, retrieved, invalid):
+    def do_retrieved_path_drawing(self, projected, retrieved, invalid):
         #display points in rviz
         if len(projected) > 0:
-            if self.drawPoints:
-                self.drawPointsWrapper.drawPoints(retrieved, self.currentGroupName, "retrieved", DrawPointsWrapper.ANGLES, DrawPointsWrapper.WHITE, 0.1)
+            if self.draw_points:
+                self.draw_points_wrapper.draw_points(retrieved, self.current_group_name, "retrieved", DrawPointsWrapper.ANGLES, DrawPointsWrapper.WHITE, 0.1)
                 projectionDisplay = projected[:projected.index(retrieved[0])]+projected[projected.index(retrieved[-1])+1:]
-                self.drawPointsWrapper.drawPoints(projectionDisplay, self.currentGroupName, "projection", DrawPointsWrapper.ANGLES, DrawPointsWrapper.BLUE, 0.2)
+                self.draw_points_wrapper.draw_points(projectionDisplay, self.current_group_name, "projection", DrawPointsWrapper.ANGLES, DrawPointsWrapper.BLUE, 0.2)
                 invalidDisplay = []
                 for invSec in invalid:
                     invalidDisplay += projected[invSec[0]+1:invSec[-1]]
-                self.drawPointsWrapper.drawPoints(invalidDisplay, self.currentGroupName, "invalid", DrawPointsWrapper.ANGLES, DrawPointsWrapper.RED, 0.2)
+                self.draw_points_wrapper.draw_points(invalidDisplay, self.current_group_name, "invalid", DrawPointsWrapper.ANGLES, DrawPointsWrapper.RED, 0.2)
 
-    def retrieveRepair(self, actionGoal):
-        self.workingLock.acquire()
-        self._setStopValue(False)
-        if self.drawPoints:
-            self.drawPointsWrapper.clearPoints()
+    def _retrieve_repair(self, action_goal):
+        self.working_lock.acquire()
+        self._set_stop_value(False)
+        if self.draw_points:
+            self.draw_points_wrapper.clear_points()
         rospy.loginfo("RR action server: RR got an action goal")
-        s, g = actionGoal.start, actionGoal.goal
+        s, g = action_goal.start, action_goal.goal
         res = RRResult()
         res.status.status = res.status.FAILURE
-        self.currentJointNames = actionGoal.joint_names
-        self.currentGroupName = actionGoal.group_name
+        self.current_joint_names = action_goal.joint_names
+        self.current_group_name = action_goal.group_name
         projected, retrieved, invalid = [], [], []
-        repairState = STATE_RETRIEVE
+        repair_state = STATE_RETRIEVE
 
-        while not self._needToStop() and repairState != STATE_FINISHED:
-            if repairState == STATE_RETRIEVE:
-                projected, retrieved, invalid = self.pathLibrary.retrievePath(s, g, self.numPathsChecked, self.robotName, self.currentGroupName, self.currentJointNames)
+        while not self._need_to_stop() and repair_state != STATE_FINISHED:
+            if repair_state == STATE_RETRIEVE:
+                projected, retrieved, invalid = self.path_library.retrieve_path(s, g, self.num_paths_checked, self.robot_name, self.current_group_name, self.current_joint_names)
                 if len(projected) == 0:
                     rospy.loginfo("RR action server: got an empty path for retrieve state")
-                    repairState = STATE_FINISHED
+                    repair_state = STATE_FINISHED
                 else:
-                    if self.drawPoints:
-                        self._doRetrievedPathDrawing(projected, retrieved, invalid)
-                    repairState = STATE_REPAIR
-            elif repairState == STATE_REPAIR:
-                repaired = self.pathRepair(projected, actionGoal.allowed_planning_time, invalidSections=invalid)
+                    if self.draw_points:
+                        self.do_retrieved_path_drawing(projected, retrieved, invalid)
+                    repair_state = STATE_REPAIR
+            elif repair_state == STATE_REPAIR:
+                repaired = self._path_repair(projected, action_goal.allowed_planning_time.to_sec(), invalid_sections=invalid)
                 if repaired is None:
                     rospy.loginfo("RR action server: path repair failed")
-                    repairState = STATE_FINISHED
+                    repair_state = STATE_FINISHED
                 else:
-                    repairState = STATE_RETURN_PATH
-            elif repairState == STATE_RETURN_PATH:
+                    repair_state = STATE_RETURN_PATH
+            elif repair_state == STATE_RETURN_PATH:
                 res.status.status = res.status.SUCCESS
                 res.retrieved_path = [Float64Array(p) for p in retrieved]
                 res.repaired_path = [Float64Array(p) for p in repaired]
                 rospy.loginfo("RR action server: returning a path")
-                repairState = STATE_FINISHED
-        if repairState == STATE_RETRIEVE:
+                repair_state = STATE_FINISHED
+        if repair_state == STATE_RETRIEVE:
             rospy.loginfo("RR action server: stopped before it retrieved a path")
-        elif repairState == STATE_REPAIR:
+        elif repair_state == STATE_REPAIR:
             rospy.loginfo("RR action server: stopped before it could repair a retrieved path")
-        elif repairState == STATE_RETURN_PATH:
+        elif repair_state == STATE_RETURN_PATH:
             rospy.loginfo("RR action server: stopped before it could return a repaired path")
-        self.RRServer.set_succeeded(res)
-        self.workingLock.release()
+        self.rr_server.set_succeeded(res)
+        self.working_lock.release()
 
-    def pathRepair(self, origPath, planningTime, invalidSections=None, useParallelReparing=True):
-        zeros_tuple = tuple([0 for i in xrange(len(self.currentJointNames))])
-        rospy.loginfo("RR action server: got path with %d points" % len(origPath))
+    def _path_repair(self, original_path, planning_time, invalid_sections=None, use_parallel_repairing=True):
+        zeros_tuple = tuple([0 for i in xrange(len(self.current_joint_names))])
+        rospy.loginfo("RR action server: got path with %d points" % len(original_path))
         
-        if invalidSections is None:
-            invalidSections = self.invalidSectionWrapper.getInvalidSectionsForPath(origPath, self.currentGroupName)
-        rospy.loginfo("RR action server: invalid sections: %s" % (str(invalidSections)))
-        if len(invalidSections) > 0:
-            if invalidSections[0][0] == -1:
+        if invalid_sections is None:
+            invalid_sections = self.invalid_section_wrapper.getInvalidSectionsForPath(original_path, self.current_group_name)
+        rospy.loginfo("RR action server: invalid sections: %s" % (str(invalid_sections)))
+        if len(invalid_sections) > 0:
+            if invalid_sections[0][0] == -1:
                 rospy.loginfo("RR action server: Start is not a valid state...nothing can be done")
                 return None
-            if invalidSections[-1][1] == len(origPath):
+            if invalid_sections[-1][1] == len(original_path):
                 rospy.loginfo("RR action server: Goal is not a valid state...nothing can be done")
                 return None
             
-            if useParallelReparing:
+            if use_parallel_repairing:
                 #multi-threaded repairing
-                self.repairedSections = [None for i in xrange(len(invalidSections))]
+                self.repaired_sections = [None for i in xrange(len(invalid_sections))]
                 #each thread replans an invalid section
                 threadList = []
-                for i, sec in enumerate(invalidSections):
-                    th = threading.Thread(target=self._threadActivity, args=(i, origPath[sec[0]], origPath[sec[-1]], sec[0], sec[-1], planningTime))
+                for i, sec in enumerate(invalid_sections):
+                    th = threading.Thread(target=self._repair_thread, args=(i, original_path[sec[0]], original_path[sec[-1]], sec[0], sec[-1], planning_time))
                     threadList.append(th)
                     th.start()
                 for th in threadList:
                     th.join()
                 #once all threads return, then the repaired sections can be combined
-                for item in self.repairedSections:
+                for item in self.repaired_sections:
                     if item is None:
                         rospy.loginfo("RR action server: RR node was stopped during repair or repair failed")
                         return None
                 #replace invalid sections with replanned sections
-                newPath = origPath[0:invalidSections[0][0]]
-                for i in xrange(len(invalidSections)):
-                    newPath += self.repairedSections[i]
-                    if i+1 < len(invalidSections):
-                        newPath += origPath[invalidSections[i][1]+1:invalidSections[i+1][0]]
-                newPath += origPath[invalidSections[-1][1]+1:]
-                self.repairedSections = [] #reset repairedSections
+                new_path = original_path[0:invalid_sections[0][0]]
+                for i in xrange(len(invalid_sections)):
+                    new_path += self.repaired_sections[i]
+                    if i+1 < len(invalid_sections):
+                        new_path += original_path[invalid_sections[i][1]+1:invalid_sections[i+1][0]]
+                new_path += original_path[invalid_sections[-1][1]+1:]
+                self.repaired_sections = [] #reset repaired_sections
             else:
                 #single-threaded repairing
-                rospy.loginfo("RR action server: Got invalid sections: %s" % str(invalidSections))
-                newPath = origPath[0:invalidSections[0][0]]
-                for i in xrange(len(invalidSections)):
-                    if not self._needToStop():
-                        #startInvalid and endInvalid must correspond to valid states when passed to the planner
-                        startInvalid, endInvalid = invalidSections[i]
-                        rospy.loginfo("RR action server: Requesting path to replace from %d to %d" % (startInvalid, endInvalid))
-                        repairedSection = self._callPlanner(origPath[startInvalid], origPath[endInvalid])
+                rospy.loginfo("RR action server: Got invalid sections: %s" % str(invalid_sections))
+                new_path = original_path[0:invalid_sections[0][0]]
+                for i in xrange(len(invalid_sections)):
+                    if not self._need_to_stop():
+                        #start_invalid and end_invalid must correspond to valid states when passed to the planner
+                        start_invalid, end_invalid = invalid_sections[i]
+                        rospy.loginfo("RR action server: Requesting path to replace from %d to %d" % (start_invalid, end_invalid))
+                        repairedSection = self._call_planner(original_path[start_invalid], original_path[end_invalid])
                         if repairedSection is None:
                             rospy.loginfo("RR action server: RR section repair was stopped or failed")
                             return None
-                        rospy.loginfo("RR action server: Planner returned a trajectory of %d points for %d to %d" % (len(repairedSection), startInvalid, endInvalid))
-                        newPath += repairedSection
-                        if i+1 < len(invalidSections):
-                            newPath += origPath[endInvalid+1:invalidSections[i+1][0]]
+                        rospy.loginfo("RR action server: Planner returned a trajectory of %d points for %d to %d" % (len(repairedSection), start_invalid, end_invalid))
+                        new_path += repairedSection
+                        if i+1 < len(invalid_sections):
+                            new_path += original_path[end_invalid+1:invalid_sections[i+1][0]]
                     else:
                         rospy.loginfo("RR action server: RR was stopped while it was repairing the retrieved path")
                         return None
-                newPath += origPath[invalidSections[-1][1]+1:]
-            rospy.loginfo("RR action server: Trajectory after replan has %d points" % len(newPath))
+                new_path += original_path[invalid_sections[-1][1]+1:]
+            rospy.loginfo("RR action server: Trajectory after replan has %d points" % len(new_path))
         else:
-            newPath = origPath
+            new_path = original_path
             
-        rospy.loginfo("RR action server: new trajectory has %i points" % (len(newPath)))
-        return newPath
+        rospy.loginfo("RR action server: new trajectory has %i points" % (len(new_path)))
+        return new_path
 
-    def stopRRPlanner(self, msg):
-        self._setStopValue(True)
+    def _stop_rr_planner(self, msg):
+        self._set_stop_value(True)
         rospy.loginfo("RR action server: RR node got a stop message")
-        self.stopRRPlannerPublisher.publish(msg)
+        self.stop_rr_planner_publisher.publish(msg)
 
-    def doManageAction(self, request):
-        self.workingLock.acquire()
+    def _do_manage_action(self, request):
+        self.working_lock.acquire()
         response = ManagePathLibraryResponse()
         response.result = response.FAILURE
         
         if request.action == request.ACTION_STORE:
             rospy.loginfo("RR action server: got a path to store in path library")
             if len(request.path_to_store) > 0:
-                newPath = [p.positions for p in request.path_to_store]
+                new_path = [p.positions for p in request.path_to_store]
 
                 if len(request.retrieved_path) == 0:
                     #PFS won so just store the path
-                    self.pathLibrary.storePath(newPath, request.robot_name, request.joint_names)
+                    self.path_library.store_path(new_path, request.robot_name, request.joint_names)
                 else:
-                    self.pathLibrary.storePath(newPath, request.robot_name, request.joint_names, [p.positions for p in request.retrieved_path])
+                    self.path_library.store_path(new_path, request.robot_name, request.joint_names, [p.positions for p in request.retrieved_path])
                 response.result = response.SUCCESS
             else:
                 response.message = "Path to store had no points"
         elif request.action == request.ACTION_DELETE_PATH:
             rospy.loginfo("RR action server: got a request to delete path %i in the path library" % (request.delete_id))
-            if self.pathLibrary.deletePathById(request.delete_id, request.robot_name, request.joint_names):
+            if self.path_library.delete_path_by_id(request.delete_id, request.robot_name, request.joint_names):
                 response.result = response.SUCCESS
             else:
                 response.message = "No path in the library had id %i" % (request.delete_id)
         elif request.action == request.ACTION_DELETE_LIBRARY:
             rospy.loginfo("RR action server: got a request to delete library corresponding to robot %s and joints %s" % (request.robot_name, request.joint_names))
-            if self.pathLibrary.deleteLibrary(request.robot_name, request.joint_names):
+            if self.path_library.delete_library(request.robot_name, request.joint_names):
                 response.result = response.SUCCESS
             else:
                 response.message = "No library corresponding to robot %s and joint names %s exists"
         else:
             rospy.logerr("RR action server: manage path library request did not have a valid action set")
-        self.workingLock.release()
+        self.working_lock.release()
         return response
 
 if __name__ == "__main__":
