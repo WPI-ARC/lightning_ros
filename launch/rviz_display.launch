@@ -11,6 +11,9 @@
 
     <!-- load planning_environment -->
     <include file="$(find planning_environment)/launch/environment_server.launch"/>
+    
+    <!--for this example, do not use the collision map-->
+    <param name="/environment_server/use_collision_map" value="false" />
 
     <!-- load ik -->
     <include file="$(find pr2_arm_navigation_kinematics)/launch/right_arm_collision_free_ik.launch"/> 

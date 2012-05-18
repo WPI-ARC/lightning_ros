@@ -85,7 +85,7 @@ class Lightning:
             self.draw_points_wrapper = DrawPointsWrapper()
 
     def _lightning_timeout(self, time):
-        self.lightning_response_ready_event.wait(time):
+        self.lightning_response_ready_event.wait(time)
         if self.lightning_response is None:
             rospy.loginfo("Lightning: ran out of time")
             if self.use_rr:
