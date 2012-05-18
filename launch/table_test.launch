@@ -1,7 +1,7 @@
 <launch>
 
     <arg name="arm_to_use" value="right" />
-    <arg name="num_test_iterations" value="1" />
+    <arg name="num_test_iterations" value="5" />
 
     <include file="$(find lightning)/launch/rviz_display.launch">
     </include>
