@@ -161,7 +161,7 @@ class RRNode:
             elif repair_state == STATE_REPAIR:
                 repaired = self._path_repair(projected, action_goal.allowed_planning_time.to_sec(), invalid_sections=invalid)
                 if repaired is None:
-                    rospy.loginfo("RR action server: path repair failed")
+                    rospy.loginfo("RR action server: path repair didn't finish")
                     repair_state = STATE_FINISHED
                 else:
                     repair_state = STATE_RETURN_PATH
