@@ -464,6 +464,7 @@ bool OmplRosStoppablePlanningGroup::computePlan(arm_navigation_msgs::GetMotionPl
     //bool solved = planner_->solve(request.motion_plan_request.allowed_planning_time.toSec());
 
     //for displaying RRT search space
+    //draws start and goal trees of RRT Connect planner in different colors
     if (draw_points_) {
         ompl::base::PlannerData pd(planner_->getSpaceInformation());
         planner_->getPlannerData(pd);
@@ -477,7 +478,7 @@ bool OmplRosStoppablePlanningGroup::computePlan(arm_navigation_msgs::GetMotionPl
             std::vector<unsigned int> edgeArray;
             draw_start.model_group_name = group_name_;
             draw_goal.model_group_name = group_name_;
-            for (unsigned int i = 0; i < pd.numVertices(); i++) { //pd.states.size(); i++) {
+            for (unsigned int i = 0; i < pd.numVertices(); i++) {
                 //get the position of the next state in the search space
                 const ompl::base::PlannerDataVertex &current_pdv = pd.getVertex(i);
                 omplStateToKinematicStateGroup(current_pdv.getState(), *ostrsm, kstate->getJointStateGroup(physical_joint_group_->getName()));
@@ -489,7 +490,6 @@ bool OmplRosStoppablePlanningGroup::computePlan(arm_navigation_msgs::GetMotionPl
                     bt = kstate->getLinkState("l_wrist_roll_link")->getGlobalLinkTransform().asBt();
                 } 
                 btVector3 trans = bt.getOrigin();
-                //ROS_INFO("Stoppable planning group, x: %f, y: %f, z: %f", trans.getX(), trans.getY(), trans.getZ());
                 point[0] = trans.getX();
                 point[1] = trans.getY();
                 point[2] = trans.getZ();
@@ -542,26 +542,10 @@ bool OmplRosStoppablePlanningGroup::computePlan(arm_navigation_msgs::GetMotionPl
                 draw_goal.blue = 1.0;
             }
             draw_start.action = draw_start.ACTION_ADD;
-            draw_start.point_radius = 0.00;
+            draw_start.point_radius = 0.00; //only make edges visible when viewing
             draw_goal.action = draw_goal.ACTION_ADD;
             draw_goal.point_radius = 0.00;
 
-            //lightning::IntArray endPoints, emptyEndPoints;
-            //std::vector<unsigned int> edgeArray;
-            //for (unsigned int i = 0; i < pd.numEdges(); i++) {
-            //    edgeArray.clear();
-            //    pd.getEdges(i, edgeArray);
-            //    for (std::size_t j = 0; j < edgeArray.size(); j++) {
-            //        endPoints.values.push_back(edgeArray[i]);
-            //    }
-            //    if (pd.tags[i] == 1) {
-            //        draw_start.edges.push_back(endPoints);
-            //        draw_goal.edges.push_back(emptyEndPoints);
-            //    } else if (pd.tags[i] == 2) {
-            //        draw_goal.edges.push_back(endPoints);
-            //        draw_start.edges.push_back(emptyEndPoints);
-            //    }
-            //}
             ROS_INFO("Stoppable planning group: sending %u points for start display", (unsigned int)draw_start.points.size());
             ROS_INFO("Stoppable planning group: sending %u points for goal display", (unsigned int)draw_goal.points.size());
             draw_publisher_.publish(draw_start);
