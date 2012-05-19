@@ -461,8 +461,113 @@ bool OmplRosStoppablePlanningGroup::computePlan(arm_navigation_msgs::GetMotionPl
     //modification
     current_termination_condition_ = ompl::base::timedPlannerTerminationCondition(request.motion_plan_request.allowed_planning_time.toSec());
     bool solved = planner_->solve(current_termination_condition_);
-
     //bool solved = planner_->solve(request.motion_plan_request.allowed_planning_time.toSec());
+
+    //for displaying RRT search space
+    if (draw_points_) {
+        ompl::base::PlannerData pd(planner_->getSpaceInformation());
+        planner_->getPlannerData(pd);
+        ompl_ros_interface::OmplStateToKinematicStateMapping *ostrsm = get_ompl_state_to_kinematic_state_mapping();
+        if (ostrsm != NULL && (group_name_[0] == 'r' or group_name_[0] == 'l')) {
+            planning_models::KinematicState *kstate(collision_models_interface_->getPlanningSceneState());
+            std::vector<double> point(3);
+            lightning::DrawPoints draw_start, draw_goal;
+            lightning::Float64Array point_msg;
+            lightning::IntArray endPoints, emptyEndPoints;
+            std::vector<unsigned int> edgeArray;
+            draw_start.model_group_name = group_name_;
+            draw_goal.model_group_name = group_name_;
+            for (unsigned int i = 0; i < pd.numVertices(); i++) { //pd.states.size(); i++) {
+                //get the position of the next state in the search space
+                const ompl::base::PlannerDataVertex &current_pdv = pd.getVertex(i);
+                omplStateToKinematicStateGroup(current_pdv.getState(), *ostrsm, kstate->getJointStateGroup(physical_joint_group_->getName()));
+                kstate->getJointStateGroup(physical_joint_state_group_->getName())->updateKinematicLinks();
+                btTransform bt;
+                if (group_name_[0] == 'r') { //right arm
+                    bt = kstate->getLinkState("r_wrist_roll_link")->getGlobalLinkTransform().asBt();
+                } else { //left arm
+                    bt = kstate->getLinkState("l_wrist_roll_link")->getGlobalLinkTransform().asBt();
+                } 
+                btVector3 trans = bt.getOrigin();
+                //ROS_INFO("Stoppable planning group, x: %f, y: %f, z: %f", trans.getX(), trans.getY(), trans.getZ());
+                point[0] = trans.getX();
+                point[1] = trans.getY();
+                point[2] = trans.getZ();
+                point_msg.values = point;
+                draw_start.points.push_back(point_msg);
+                draw_goal.points.push_back(point_msg);
+                
+                //get the edges of the next state in the search space
+                edgeArray.clear();
+                pd.getEdges(i, edgeArray);
+                endPoints.values.clear();
+                for (std::size_t j = 0; j < edgeArray.size(); j++) {
+                    endPoints.values.push_back(edgeArray[i]);
+                }
+                if (current_pdv.getTag() == 1) {
+                    draw_start.edges.push_back(endPoints);
+                    draw_goal.edges.push_back(emptyEndPoints);
+                } else if (current_pdv.getTag() == 2) {
+                    draw_goal.edges.push_back(endPoints);
+                    draw_start.edges.push_back(emptyEndPoints);
+                }
+            }
+            draw_start.point_group_name = node_handle_.getNamespace()+"_tree_start";
+            draw_start.point_type = draw_start.POINT_TYPE_POSES;
+            draw_start.display_density = 1.0;
+            draw_goal.point_group_name = node_handle_.getNamespace()+"_tree_goal";
+            draw_goal.point_type = draw_goal.POINT_TYPE_POSES;
+            draw_goal.display_density = 1.0;
+            if (node_handle_.getNamespace().find("rr") != std::string::npos) {
+                draw_start.red = 1.0;
+                draw_start.green = 1.0;
+                draw_start.blue = 0.0;
+                draw_goal.red = 0.0;
+                draw_goal.green = 1.0;
+                draw_goal.blue = 0.0;
+            } else if (node_handle_.getNamespace().find("pfs") != std::string::npos) {
+                draw_start.red = 1.0;
+                draw_start.green = 0.0;
+                draw_start.blue = 1.0;
+                draw_goal.red = 1.0;
+                draw_goal.green = 0.0;
+                draw_goal.blue = 0.0;
+            } else {
+                ROS_INFO("Stoppable planning group: not looking at pfs or rr data");
+                draw_start.red = 1.0;
+                draw_start.green = 1.0;
+                draw_start.blue = 1.0;
+                draw_goal.red = 1.0;
+                draw_goal.green = 1.0;
+                draw_goal.blue = 1.0;
+            }
+            draw_start.action = draw_start.ACTION_ADD;
+            draw_start.point_radius = 0.00;
+            draw_goal.action = draw_goal.ACTION_ADD;
+            draw_goal.point_radius = 0.00;
+
+            //lightning::IntArray endPoints, emptyEndPoints;
+            //std::vector<unsigned int> edgeArray;
+            //for (unsigned int i = 0; i < pd.numEdges(); i++) {
+            //    edgeArray.clear();
+            //    pd.getEdges(i, edgeArray);
+            //    for (std::size_t j = 0; j < edgeArray.size(); j++) {
+            //        endPoints.values.push_back(edgeArray[i]);
+            //    }
+            //    if (pd.tags[i] == 1) {
+            //        draw_start.edges.push_back(endPoints);
+            //        draw_goal.edges.push_back(emptyEndPoints);
+            //    } else if (pd.tags[i] == 2) {
+            //        draw_goal.edges.push_back(endPoints);
+            //        draw_start.edges.push_back(emptyEndPoints);
+            //    }
+            //}
+            ROS_INFO("Stoppable planning group: sending %u points for start display", (unsigned int)draw_start.points.size());
+            ROS_INFO("Stoppable planning group: sending %u points for goal display", (unsigned int)draw_goal.points.size());
+            draw_publisher_.publish(draw_start);
+            draw_publisher_.publish(draw_goal);
+        }
+    }
     
     if(solved)
     {

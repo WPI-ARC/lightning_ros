@@ -167,7 +167,7 @@ class LightningTester:
         if ik_solve_res.error_code.val == ik_solve_res.error_code.SUCCESS:
             return ik_solve_res.solution.joint_state.position
         else:
-            rospy.loginfo("Lightning tester: inverse kinematics failed %i", ik_solve_res.error_code.val)
+            rospy.loginfo("Lightning tester: cannot move to sampled position...trying another position")
             return []
 
     def _reset_box_scene(self):
