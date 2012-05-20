@@ -46,8 +46,8 @@ from lightning.msg import DrawPoints
 from kinematics_msgs.srv import GetKinematicSolverInfo, GetKinematicSolverInfoRequest, GetPositionFK, GetPositionFKRequest
 from geometry_msgs.msg import Point
 
-DRAW_POINTS = "/lightning/draw_points"
-MARKER_SUBSCRIBER_NAME = "visualization_marker_array"
+DRAW_POINTS = "draw_points"
+MARKER_SUBSCRIBER_NAME = "/visualization_marker_array"
 
 class PointDrawer:
     def __init__(self):
@@ -60,7 +60,7 @@ class PointDrawer:
         edges = []
         if msg.action == msg.ACTION_ADD:
             if msg.model_group_name in ["right_arm", "left_arm"]:
-                rospy.loginfo("Point drawer: got a set of %i points to draw for %s" % (len(msg.points), msg.model_group_name))
+                rospy.loginfo("Point drawer: got a set of %i points to draw for %s for %s" % (len(msg.points), msg.model_group_name, msg.point_group_name))
                 if len(msg.points) > 0:
                     if msg.point_type == msg.POINT_TYPE_ANGLES:
                         point_id = 0
@@ -201,8 +201,8 @@ class PointDrawer:
     def _get_coordinates(self, point, arm):
         if arm not in ["right_arm", "left_arm"]: #can only draw points for pr2 arms
             return None
-        FK_INFO_NAME = "pr2_%s_kinematics/get_fk_solver_info" % (arm)
-        FK_NAME = "pr2_%s_kinematics/get_fk" % (arm)
+        FK_INFO_NAME = "/pr2_%s_kinematics/get_fk_solver_info" % (arm)
+        FK_NAME = "/pr2_%s_kinematics/get_fk" % (arm)
 
         info_client = rospy.ServiceProxy(FK_INFO_NAME, GetKinematicSolverInfo)
         info_request = GetKinematicSolverInfoRequest()

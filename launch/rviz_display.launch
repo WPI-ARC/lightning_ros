@@ -21,7 +21,9 @@
 
     <node pkg="rviz" type="rviz" name="rviz" args="-d $(find lightning)/config/rviz_config.vcg" />
    
-    <node name="point_drawer" pkg="lightning" type="PointDrawer.py" output="screen">
-    </node>
+    <group ns="lightning">
+        <node name="point_drawer" pkg="lightning" type="PointDrawer.py" output="screen">
+        </node>
+    </group>
 
 </launch>

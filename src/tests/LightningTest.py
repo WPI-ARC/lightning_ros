@@ -138,8 +138,8 @@ class LightningTester:
         rospy.wait_for_service(LIGHTNING_NAME)
 
     def _do_ik(self, px, py, pz, arm):
-        IK_INFO_NAME = "pr2_%s_kinematics/get_ik_solver_info" % (arm)
-        IK_NAME = "pr2_%s_kinematics/get_constraint_aware_ik" % (arm)
+        IK_INFO_NAME = "/pr2_%s_kinematics/get_ik_solver_info" % (arm)
+        IK_NAME = "/pr2_%s_kinematics/get_constraint_aware_ik" % (arm)
 
         ik_solver_info_service_proxy = rospy.ServiceProxy(IK_INFO_NAME, GetKinematicSolverInfo)
         ik_info_req = GetKinematicSolverInfoRequest()

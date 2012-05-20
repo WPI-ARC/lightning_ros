@@ -56,8 +56,8 @@ bool OmplRosStoppablePlanningGroup::initialize(const ros::NodeHandle &node_handl
     planner_config_name_ = planner_config_name;
 
     //modification
-    draw_publisher_ = node_handle_.advertise<lightning::DrawPoints>("/draw_points", 10);
-    node_handle_.getParam("/draw_points", draw_points_);
+    draw_publisher_ = node_handle_.advertise<lightning::DrawPoints>("/lightning/draw_points", 10);
+    node_handle_.getParam("/lightning/draw_points", draw_points_);
 
     if(!initializePhysicalGroup())
         return false;
@@ -474,8 +474,8 @@ bool OmplRosStoppablePlanningGroup::computePlan(arm_navigation_msgs::GetMotionPl
             std::vector<double> point(3);
             lightning::DrawPoints draw_start, draw_goal;
             lightning::Float64Array point_msg;
-            lightning::IntArray endPoints, emptyEndPoints;
-            std::vector<unsigned int> edgeArray;
+            lightning::IntArray end_points, emptyEndPoints;
+            std::vector<unsigned int> edge_array;
             draw_start.model_group_name = group_name_;
             draw_goal.model_group_name = group_name_;
             for (unsigned int i = 0; i < pd.numVertices(); i++) {
@@ -498,17 +498,17 @@ bool OmplRosStoppablePlanningGroup::computePlan(arm_navigation_msgs::GetMotionPl
                 draw_goal.points.push_back(point_msg);
                 
                 //get the edges of the next state in the search space
-                edgeArray.clear();
-                pd.getEdges(i, edgeArray);
-                endPoints.values.clear();
-                for (std::size_t j = 0; j < edgeArray.size(); j++) {
-                    endPoints.values.push_back(edgeArray[i]);
+                edge_array.clear();
+                pd.getEdges(i, edge_array);
+                end_points.values.clear();
+                for (std::size_t j = 0; j < edge_array.size(); j++) {
+                    end_points.values.push_back(edge_array[j]);
                 }
                 if (current_pdv.getTag() == 1) {
-                    draw_start.edges.push_back(endPoints);
+                    draw_start.edges.push_back(end_points);
                     draw_goal.edges.push_back(emptyEndPoints);
                 } else if (current_pdv.getTag() == 2) {
-                    draw_goal.edges.push_back(endPoints);
+                    draw_goal.edges.push_back(end_points);
                     draw_start.edges.push_back(emptyEndPoints);
                 }
             }
