@@ -136,6 +136,7 @@ class LightningTester:
 
     def wait_for_lightning(self):
         rospy.wait_for_service(LIGHTNING_NAME)
+        rospy.sleep(0.5)
 
     def _do_ik(self, px, py, pz, arm):
         IK_INFO_NAME = "/pr2_%s_kinematics/get_ik_solver_info" % (arm)
