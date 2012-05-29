@@ -1,16 +1,24 @@
 <launch>
+    <!-- runs a full test: starts rviz, gazebo, lightning, and a test node -->
+    <!-- The scene is a tabletop with four boxes on it. The positions of the boxes are randomly chosen and a goal position is chosen around the top of the table. -->
 
+    <!-- this value must be 'right' or 'left' to specify which arm to use for testing -->
     <arg name="arm_to_use" value="right" />
+    <!-- number of iterations to use for the test -->
     <arg name="num_test_iterations" value="5" />
 
+    <!-- launches gazebo and rviz -->
     <include file="$(find lightning)/launch/rviz_display.launch">
     </include>
 
+    <!-- launches lightning -->
     <include file="$(find lightning)/launch/lightning.launch">
     </include>
+    <!-- setting a couple of lightning parameters for the test -->
     <param name="/lightning/draw_points" value="true" />
     <param name="/lightning/robot_name" value = "table_test_pr2" />
 
+    <!-- node that sends the start and goal to lightning for planning -->
     <node name="run_test" pkg="lightning" type="LightningTest.py" args="table $(arg arm_to_use) $(arg num_test_iterations)" output="screen">
     </node>
 

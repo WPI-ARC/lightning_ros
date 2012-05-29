@@ -1,10 +1,20 @@
+#start joint configuration
 float64[] start
+#goal joint configuration
 float64[] goal
+
 string[] joint_names
+
+#group name of set of joints (e.g. right_arm)
 string group_name
+
+#time planner(s) can take before giving up
 duration allowed_planning_time
 ---
+#path that was retrieved from the library (for testing if path storage is necessary)
 Float64Array[] retrieved_path
+#final repaired path to use
 Float64Array[] repaired_path
+
 Status status
 ---

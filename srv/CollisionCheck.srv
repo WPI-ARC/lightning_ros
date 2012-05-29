@@ -1,8 +1,10 @@
+#group name of joints that are being checked
 string group_name
 
-#list of positions; this is the points in the path; each point is in a ListContainer
+#list of paths to find invalid sections for
 Float64Array2D[] paths
 ---
-#list of invalid sections of path; gives a list of pairs [start, end] that specify the start and end of invalid sections of the give path
+#invalid_sections[i] is a list of pairs; each pair is a start and end index that corresponds to an invalid section of paths[i]
+#the start and end index are valid; everything between is invalid
 IntArray2D[] invalid_sections
 Status status

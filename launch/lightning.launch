@@ -1,10 +1,12 @@
 <launch>
+    <!-- all lightning default parameters are set here -->
     <group ns="lightning">
         <param name="robot_name" value="pr2" />
         <param name="step_size" value="0.02" />
         <param name="draw_points" value="false" />
         <remap from="register_planning_scene" to="/register_planning_scene" />
 
+        <!-- returns invalid sections of paths -->
         <node name="collision_check_service" pkg="lightning" type="collision_check_service" output="screen">
             <param name="num_threads" value="4" />
         </node>
@@ -14,9 +16,10 @@
             <param name="ignore_fraction" value="0.1" />
         </node>
 
-        <!-- load planning -->
+        <!-- load planners for RR and PFS -->
         <include file="$(find lightning)/launch/planners.launch"/>
 
+        <!-- handles requests for RR planning -->
         <node name="rr_node" pkg="lightning" type="RR_action_server.py" output="screen">
             <param name="num_rr_planners" value="2" />
             <param name="path_library_path_node_size" value="8" />
@@ -26,9 +29,11 @@
             <param name="path_library_dir" value="$(find lightning)/src/pathlib/paths" />
         </node>
 
+        <!-- handles requests for PFS planning -->
         <node name="pfs_node" pkg="lightning" type="PFS_action_server.py" output="screen">
         </node>
 
+        <!-- receives planning requests and routes them to RR and/or PFS -->
         <node name="lightning" pkg="lightning" type="lightning.py" output="screen">
             <param name="store_paths" value="true" />
             <param name="use_RR" value="true" />

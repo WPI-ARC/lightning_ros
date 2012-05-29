@@ -76,6 +76,8 @@ class OmplRosStoppable
 
         //modification: commented out a constructor and added a new one
         //OmplRosStoppable();
+        
+        //planner name (currently used for debugging) and topic name to use for stopping the planner
         OmplRosStoppable(std::string name, std::string stop_name);
         ~OmplRosStoppable();
 
@@ -92,7 +94,7 @@ class OmplRosStoppable
 
     private:
 
-        //modification
+        //modification: callback for messages for stopping planning
         void stop_planning(const lightning::StopPlanning::ConstPtr & msg);
 
         /**
@@ -127,14 +129,14 @@ class OmplRosStoppable
         planning_environment::CollisionModelsInterface *collision_models_interface_;
         ros::NodeHandle                        node_handle_;
 
-        //modification
+        //modification: private node handle
         ros::NodeHandle nh_;
 
         std::string default_planner_config_;
         bool publish_diagnostics_;
         ros::Publisher diagnostic_publisher_;
 
-        //modification
+        //modification: topic name for messages to stop planning and planner name (currently used for debugging)
         std::string stop_name_, planner_name_;
         ros::Subscriber stop_planning_subscriber_;
 };

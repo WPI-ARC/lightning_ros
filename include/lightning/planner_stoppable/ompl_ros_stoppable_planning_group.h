@@ -95,7 +95,7 @@ class OmplRosStoppablePlanningGroup
 
         OmplRosStoppablePlanningGroup(){}
 
-        //modification
+        //modification: stop the currently planning planner from working
         void stop_planning();
         
         /**
@@ -226,7 +226,7 @@ class OmplRosStoppablePlanningGroup
         // The kinematic state
         boost::scoped_ptr<planning_models::KinematicState> kinematic_state_;
 
-        //modification
+        //modification: keep track of the termination condition so the planner can be stopped
         ompl::base::PlannerTerminationCondition current_termination_condition_;
 
         ompl::base::PlannerPtr ompl_planner_;

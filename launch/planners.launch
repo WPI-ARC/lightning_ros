@@ -20,6 +20,7 @@
   <include file="$(find pr2_arm_navigation_config)/launch/pr2_planning_environment.launch" />
 
   <!-- can use multiple rr planners for repairing -->
+  <!-- currently, two RR planners are used: to change the number used, add another rr_planner node with the next index -->
   <node machine="c2" pkg="lightning" type="planner_stoppable_main" args="rr_planner0 stop_rr_planning" name="rr_planner_node0" output="screen">
     <param name="default_planner_config" type="string" value="$(arg planner_type)"/>
     <rosparam command="load" file="$(find lightning)/config/$(arg arm_config)_arm_groups.yaml" />

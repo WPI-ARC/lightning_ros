@@ -1,5 +1,9 @@
+#group name of joints that path is for
 string group_name
+
+#path to shortcut
 Float64Array[] path
 ---
+#path with shortcutting applied
 Float64Array[] new_path
 Status status
