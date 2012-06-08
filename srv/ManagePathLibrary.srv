@@ -23,5 +23,10 @@ uint8 result
 uint8 FAILURE=0
 uint8 SUCCESS=1
 
+#number of paths in the library: only valid after a store action
+int32 num_library_paths
+#whether a path was stored or not
+bool path_stored
+
 #message explaining a failure
 string message

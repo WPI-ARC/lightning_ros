@@ -267,10 +267,11 @@ class RRNode:
 
                 if len(request.retrieved_path) == 0:
                     #PFS won so just store the path
-                    self.path_library.store_path(new_path, request.robot_name, request.joint_names)
+                    store_path_result = self.path_library.store_path(new_path, request.robot_name, request.joint_names)
                 else:
-                    self.path_library.store_path(new_path, request.robot_name, request.joint_names, [p.positions for p in request.retrieved_path])
+                    store_path_result = self.path_library.store_path(new_path, request.robot_name, request.joint_names, [p.positions for p in request.retrieved_path])
                 response.result = response.SUCCESS
+                response.path_stored, response.num_library_paths = store_path_result
             else:
                 response.message = "Path to store had no points"
         elif request.action == request.ACTION_DELETE_PATH:

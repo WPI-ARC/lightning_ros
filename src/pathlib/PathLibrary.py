@@ -275,8 +275,10 @@ class PathLibrary:
             leaf_node = self._get_path_leaf_by_sg(new_path[0], new_path[-1]);
             self._add_path(leaf_node.name, new_path);
             rospy.loginfo("Path Library: done storing path with id %i", self.next_path_id-1)
+            return (True, self._read_library_size())
         else:
             rospy.loginfo("Path Library: did not need to store this path")
+            return (False, self._read_library_size())
 
     def retrieve_path(self, s, g, n, robot_name, group_name, joint_names):
         if not self._load_library(robot_name, joint_names):

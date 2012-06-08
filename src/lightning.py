@@ -180,8 +180,6 @@ class Lightning:
         self.rr_returned = True
         if result.status.status == result.status.SUCCESS:
             if not self.pfs_returned or self.lightning_response is None:
-                rospy.loginfo("Lightning: Got a path from RR")
-
                 self._send_stop_pfs_planning()
 
                 rr_path = [p.values for p in result.repaired_path]
@@ -197,7 +195,10 @@ class Lightning:
                     self.draw_points_wrapper.draw_points(shortcut, self.current_group_name, "final", DrawPointsWrapper.ANGLES, DrawPointsWrapper.GREEN, 0.1)
 
                 if self.store_paths:
-                    self._store_path(shortcut, rr_path)
+                    store_response = self._store_path(shortcut, rr_path)
+                    self._special_print("Lightning: Got a path from RR, path stored = %s, number of library paths = %i" % (store_response))
+                else:
+                    self._special_print("Lightning: Got a path from RR")
                 return
         else:
             rospy.loginfo("Lightning: Call to RR did not return a path")
@@ -212,8 +213,6 @@ class Lightning:
         self.pfs_returned = True
         if result.status.status == result.status.SUCCESS:
             if not self.rr_returned or self.lightning_response is None:
-                rospy.loginfo("Lightning: Got a path from PFS")
-                
                 self._send_stop_rr_planning()
 
                 pfsPath = [p.values for p in result.path]
@@ -229,7 +228,10 @@ class Lightning:
                     self.draw_points_wrapper.draw_points(shortcut, self.current_group_name, "final", DrawPointsWrapper.ANGLES, DrawPointsWrapper.GREEN, 0.1)
 
                 if self.store_paths:
-                    self._store_path(shortcut, [])
+                    store_response = self._store_path(shortcut, [])
+                    self._special_print("Lightning: Got a path from PFS, path stored = %s, number of library paths = %i" % (store_response))
+                else:
+                    self._special_print("Lightning: Got a path from PFS")
                 return
         else:
             rospy.loginfo("Lightning: Call to PFS did not return a path")
@@ -263,7 +265,8 @@ class Lightning:
             jtp = JointTrajectoryPoint()
             jtp.positions = point
             store_request.retrieved_path.append(jtp)
-        self.manage_library_client(store_request)
+        store_response = self.manage_library_client(store_request)
+        return (store_response.path_stored, store_response.num_library_paths)
         
     def _send_stop_pfs_planning(self):
         self.stop_pfs_publisher.publish(self._create_stop_planning_message())
@@ -276,6 +279,11 @@ class Lightning:
         stop_message.planner_id = rospy.get_param("planner_config_name")
         stop_message.group_name = self.current_group_name
         return stop_message
+
+    def _special_print(self, msg):
+        rospy.loginfo("**************")
+        rospy.loginfo(msg)
+        rospy.loginfo("**************")
 
 if __name__ == "__main__":
     try:
