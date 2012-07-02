@@ -52,7 +52,7 @@
 #include <ompl_ros_interface/ik/ompl_ros_ik_sampler.h>
 
 // OMPL
-#include <ompl/base/GoalLazySamples.h>
+#include <ompl/base/goals/GoalLazySamples.h>
 
 
 /**
