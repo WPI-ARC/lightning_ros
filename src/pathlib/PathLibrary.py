@@ -526,7 +526,7 @@ class PathLibrary:
 
     #when split a path node, need to update path names for start-goals
     def _updateSGs(self, pathNode):
-        sgLeafName = self._get_sg_leaf_by_path_name(pathNode.name).name;
+        sg_leaf_name = self._get_sg_leaf_by_path_name(pathNode.name).name;
         if pathNode.name not in self.sg_cache.keys():       
             self._load_sg_cache(pathNode.name);
         sgs = self.sg_cache; #cache gets updated while sgs is changed
@@ -539,7 +539,7 @@ class PathLibrary:
                 sgs[pathNode.name+'l'].append(sg_with_id);
             else:
                 sgs[pathNode.name+'r'].append(sg_with_id);
-        self._make_sgs_file(sgLeafName, sgs);
+        self._make_sgs_file(sg_leaf_name, sgs);
 
     def _make_sgs_file(self, filename, sgs):
         f = open(self._get_full_filename(filename), 'w');
@@ -633,8 +633,8 @@ class PathLibrary:
     def _split_sg_node(self, sg_node_name):
         left_name, right_name = sg_node_name+'l', sg_node_name+'r';
         sg_leaf = self._find_sg_leaf_by_sg_name(sg_node_name);
-        new_left, new_right = SGTreeNode(name=left_name, parent=sg_leaf), SGTreeNode(name=right_name, parent=sgLeaf);
-        sg_leaf.left, sgLeaf.right = new_left, new_right;
+        new_left, new_right = SGTreeNode(name=left_name, parent=sg_leaf), SGTreeNode(name=right_name, parent=sg_leaf);
+        sg_leaf.left, sg_leaf.right = new_left, new_right;
         sgs = self._get_sgs(sg_node_name)
         left_sgs, right_sgs = dict(), dict()
         for path_node_name in sgs.keys():
