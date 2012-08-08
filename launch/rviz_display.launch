@@ -4,7 +4,7 @@
     <node name="gazebo" pkg="gazebo" type="gazebo" args="-r $(find gazebo_worlds)/worlds/empty.world" respawn="false"/>
 
     <!-- start pr2 robot -->
-    <include file="$(find pr2_gazebo)/pr2.launch"/>
+    <include file="$(find pr2_gazebo)/launch/pr2.launch"/>
 
     <!-- load perception -->
     <include file="$(find pr2_arm_navigation_perception)/launch/laser-perception.launch"/>
