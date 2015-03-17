@@ -37,18 +37,19 @@ of its
 
 #include "lightning/planner_stoppable/ompl_ros_stoppable.h"
 
-int main(int argc, char **argv)
-{ 
-    if (argc > 2) {
-        ros::init(argc, argv, std::string(ros::this_node::getName()));
-        OmplRosStoppable ompl_ros(argv[1], argv[2]);
-        ompl_ros.run(); 
-        ros::AsyncSpinner spinner(2);
-        spinner.start();
-        ros::waitForShutdown();
-    } else {
-        ROS_ERROR("Planner Stoppable Main: did not pass enough arguments to planner_stoppable_main");
-    }
+int main(int argc, char **argv) {
+  if (argc > 2) {
+    ros::init(argc, argv, std::string(ros::this_node::getName()));
+    OmplRosStoppable ompl_ros(argv[1], argv[2]);
+    ompl_ros.run();
+    ros::AsyncSpinner spinner(2);
+    spinner.start();
+    ros::waitForShutdown();
+  } else {
+    ROS_ERROR(
+        "Planner Stoppable Main: did not pass enough arguments to "
+        "planner_stoppable_main");
+  }
 
-    return 0;
+  return 0;
 }

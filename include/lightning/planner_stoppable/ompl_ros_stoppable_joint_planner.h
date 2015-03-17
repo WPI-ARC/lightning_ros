@@ -34,10 +34,11 @@
 
 /** \author Sachin Chitta, Ioan Sucan */
 
-/* This is a modification of ompl_ros_joint_planner.h from the ompl_ros_interface
+/* This is a modification of ompl_ros_joint_planner.h from the
+ *ompl_ros_interface
  * package created by the above organization/author.
  *
- * The modification was made by Authors: Cameron Lee (cameronlee@berkeley.edu) 
+ * The modification was made by Authors: Cameron Lee (cameronlee@berkeley.edu)
  * and Dmitry Berenson (berenson@eecs.berkeley.edu)
  * 2012, University of California, Berkeley
 */
@@ -47,90 +48,97 @@
 
 // OMPL ROS Interface
 #include <ompl_ros_interface/state_validity_checkers/ompl_ros_joint_state_validity_checker.h>
-//modification
+// modification
 #include "lightning/planner_stoppable/ompl_ros_stoppable_planning_group.h"
 #include <ompl_ros_interface/ik/ompl_ros_ik_sampler.h>
 
 // OMPL
 #include <ompl/base/goals/GoalLazySamples.h>
 
-
 /**
  * @class OmplRosStoppableJointPlanner
  * @brief A joint planner - this is the planner that most applications will use
  */
-class OmplRosStoppableJointPlanner: public OmplRosStoppablePlanningGroup
-{
-    public:
+class OmplRosStoppableJointPlanner : public OmplRosStoppablePlanningGroup {
+ public:
+  OmplRosStoppableJointPlanner() : ik_sampler_available_(false) {}
+  ~OmplRosStoppableJointPlanner() {}
 
-        OmplRosStoppableJointPlanner():ik_sampler_available_(false){}
-        ~OmplRosStoppableJointPlanner(){}
+ protected:
+  /**
+   * @brief Returns whether the motion planning request is valid
+   */
+  virtual bool isRequestValid(
+      arm_navigation_msgs::GetMotionPlan::Request &request,
+      arm_navigation_msgs::GetMotionPlan::Response &response);
 
-    protected:
+  /**
+   * @brief Set the start state(s)
+   */
+  virtual bool setStart(arm_navigation_msgs::GetMotionPlan::Request &request,
+                        arm_navigation_msgs::GetMotionPlan::Response &response);
 
-        /**
-         * @brief Returns whether the motion planning request is valid
-         */
-        virtual bool isRequestValid(arm_navigation_msgs::GetMotionPlan::Request &request,
-                arm_navigation_msgs::GetMotionPlan::Response &response);
+  /**
+   * @brief Set the goal state(s)
+   */
+  virtual bool setGoal(arm_navigation_msgs::GetMotionPlan::Request &request,
+                       arm_navigation_msgs::GetMotionPlan::Response &response);
 
-        /**
-         * @brief Set the start state(s)
-         */
-        virtual bool setStart(arm_navigation_msgs::GetMotionPlan::Request &request,
-                arm_navigation_msgs::GetMotionPlan::Response &response);
+  /**
+   * @brief Initialize the state validity checker
+   */
+  virtual bool initializeStateValidityChecker(
+      ompl_ros_interface::OmplRosStateValidityCheckerPtr &
+          state_validity_checker);
 
-        /**
-         * @brief Set the goal state(s)
-         */
-        virtual bool setGoal(arm_navigation_msgs::GetMotionPlan::Request &request,
-                arm_navigation_msgs::GetMotionPlan::Response &response);
+  /**
+   * @brief Initialize the planning state space
+   */
+  virtual bool initializePlanningStateSpace(
+      ompl::base::StateSpacePtr &state_space);
 
-        /**
-         * @brief Initialize the state validity checker
-         */
-        virtual bool initializeStateValidityChecker(ompl_ros_interface::OmplRosStateValidityCheckerPtr &state_validity_checker);
+  /**
+    @brief Returns the solution path
+    */
+  virtual arm_navigation_msgs::RobotTrajectory getSolutionPath();
 
-        /**
-         * @brief Initialize the planning state space
-         */
-        virtual bool initializePlanningStateSpace(ompl::base::StateSpacePtr &state_space);
+  // modification
+  // used for displaying planner search space
+  virtual ompl_ros_interface::OmplStateToKinematicStateMapping *
+  get_ompl_state_to_kinematic_state_mapping() {
+    return &ompl_state_to_kinematic_state_mapping_;
+  }
 
-        /**
-          @brief Returns the solution path
-          */
-        virtual arm_navigation_msgs::RobotTrajectory getSolutionPath();
+ private:
+  // Mappings in between ompl state and robot state, these are used for
+  // efficiency
+  arm_navigation_msgs::RobotState robot_state_;  // message representation of
+                                                 // the state that this class is
+                                                 // planning for
+  ompl_ros_interface::OmplStateToRobotStateMapping
+      ompl_state_to_robot_state_mapping_;
+  ompl_ros_interface::RobotStateToOmplStateMapping
+      robot_state_to_ompl_state_mapping_;
 
-        //modification
-        //used for displaying planner search space
-        virtual ompl_ros_interface::OmplStateToKinematicStateMapping * get_ompl_state_to_kinematic_state_mapping() {
-            return &ompl_state_to_kinematic_state_mapping_;
-        }
+  // Mappings between ompl state and kinematic state, these are used for
+  // efficiency
+  ompl_ros_interface::OmplStateToKinematicStateMapping
+      ompl_state_to_kinematic_state_mapping_;
+  ompl_ros_interface::KinematicStateToOmplStateMapping
+      kinematic_state_to_ompl_state_mapping_;
 
-    private:
+  bool setPoseGoal(arm_navigation_msgs::GetMotionPlan::Request &request,
+                   arm_navigation_msgs::GetMotionPlan::Response &response);
 
-        //Mappings in between ompl state and robot state, these are used for efficiency
-        arm_navigation_msgs::RobotState robot_state_; //message representation of the state that this class is planning for
-        ompl_ros_interface::OmplStateToRobotStateMapping ompl_state_to_robot_state_mapping_;
-        ompl_ros_interface::RobotStateToOmplStateMapping robot_state_to_ompl_state_mapping_;
+  bool setJointGoal(arm_navigation_msgs::GetMotionPlan::Request &request,
+                    arm_navigation_msgs::GetMotionPlan::Response &response);
 
-        //Mappings between ompl state and kinematic state, these are used for efficiency
-        ompl_ros_interface::OmplStateToKinematicStateMapping ompl_state_to_kinematic_state_mapping_;
-        ompl_ros_interface::KinematicStateToOmplStateMapping kinematic_state_to_ompl_state_mapping_;
+  std::string kinematics_solver_name_;
 
-        bool setPoseGoal(arm_navigation_msgs::GetMotionPlan::Request &request,
-                arm_navigation_msgs::GetMotionPlan::Response &response);
+  std::string end_effector_name_;
 
-        bool setJointGoal(arm_navigation_msgs::GetMotionPlan::Request &request,
-                arm_navigation_msgs::GetMotionPlan::Response &response);
+  ompl_ros_interface::OmplRosIKSampler ik_sampler_;
 
-        std::string kinematics_solver_name_;
-
-        std::string end_effector_name_;
-
-        ompl_ros_interface::OmplRosIKSampler ik_sampler_;
-
-        bool ik_sampler_available_;
-
+  bool ik_sampler_available_;
 };
-#endif //OMPL_ROS_STOPPABLE_JOINT_PLANNER_H_
+#endif  // OMPL_ROS_STOPPABLE_JOINT_PLANNER_H_
