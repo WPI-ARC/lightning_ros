@@ -125,6 +125,7 @@ add_library(planner_stoppable_l src/planner_stoppable/planner_stoppable.cpp)
 ## Declare a cpp executable
 add_executable(path_shortcutter src/tools/path_shortcutter.cpp)
 add_executable(planner_stoppable src/planner_stoppable/planner_stoppable_main.cpp)
+add_executable(collision_check_service src/tools/collision_check_service.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -146,6 +147,11 @@ target_link_libraries(path_shortcutter
 
 target_link_libraries(planner_stoppable
   planner_stoppable_l
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(collision_check_service
+  collision_checker_l
   ${catkin_LIBRARIES}
 )
 

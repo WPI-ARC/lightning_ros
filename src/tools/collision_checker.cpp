@@ -37,21 +37,32 @@ of its
 
 #include "lightning/collision_checker.h"
 
-CollisionChecker::CollisionChecker(double step_size) {
-  collision_models_interface_ =
-      new planning_environment::CollisionModelsInterface("/robot_description");
+CollisionChecker::CollisionChecker(double step_size)
+    // Progressively set up monitor, create a pointer to it, create a safer
+    // pointer using LockedScene (ls_).
+    : psm_(new planning_scene_monitor::PlanningSceneMonitor(
+          ps_, "robot_description")) {
+  // Right now, all we really care about is whether there is collision or not;
+  // nothing fancy, so defaults for everything not explicitly constructed should
+  // be fine-ish.
 
   step_size_ = step_size;
+
+  // TODO: allow overriding of default service and topic subscriptions for psm_.
+  // Get initial planning scene state from /get_planning_scene service.
+  psm_->requestPlanningSceneState();
+  psm_->startSceneMonitor(); // Default "/planning_scene"
 }
 
-CollisionChecker::~CollisionChecker() { delete collision_models_interface_; }
+CollisionChecker::~CollisionChecker() {}
 
 bool CollisionChecker::collisionModelsInterfaceLoadedModels() {
-  return collision_models_interface_->loadedModels();
+  // TODO: Figure out appropriate behavior with MoveIt.
+  return true;//collision_models_interface_->loadedModels();
 }
 
-const arm_navigation_msgs::PlanningScene &CollisionChecker::getPlanningScene() {
-  return collision_models_interface_->getLastPlanningScene();
+const planning_scene::PlanningScene &CollisionChecker::getPlanningScene() {
+  return *ps_;
 }
 
 const std::vector<std::string> &CollisionChecker::getJointNames() {
@@ -59,92 +70,59 @@ const std::vector<std::string> &CollisionChecker::getJointNames() {
 }
 
 bool CollisionChecker::acquireScene(std::string group_name) {
-  collision_models_interface_->bodiesLock();
-  if (!collision_models_interface_->isPlanningSceneSet()) {
-    ROS_WARN("Collision checker: Calling with no planning scene set");
-    collision_models_interface_->bodiesUnlock();
-    return false;
-  }
-  arm_names_ = collision_models_interface_->getKinematicModel()
-                   ->getModelGroup(group_name)
+  // May need to manually call some sort of lock.
+  //if (!collision_models_interface_->isPlanningSceneSet()) {
+  //  ROS_WARN("Collision checker: Calling with no planning scene set");
+  //  collision_models_interface_->bodiesUnlock();
+  //  return false;
+  //}
+  psm_->lockSceneRead();
+  arm_names_ = ps_->getCurrentState()
+                   .getJointModelGroup(group_name)
                    ->getUpdatedLinkModelNames();
-  joint_names_ = collision_models_interface_->getKinematicModel()
-                     ->getModelGroup(group_name)
+  joint_names_ = ps_->getCurrentState()
+                     .getJointModelGroup(group_name)
                      ->getJointModelNames();
   num_joints_ = joint_names_.size();
-  collision_models_interface_->resetToStartState(
-      *(collision_models_interface_->getPlanningSceneState()));
+  //collision_models_interface_->resetToStartState(
+  //    *(collision_models_interface_->getPlanningSceneState()));
   return true;
 }
 
 void CollisionChecker::releaseScene() {
-  collision_models_interface_->bodiesUnlock();
+  // Figure out if this needs to do anything under MoveIt.
+  psm_->unlockSceneRead();
 }
 
-// must call acquireScene before checking a path and releaseScene after checking
-// a path
-bool CollisionChecker::checkStateValid(const std::vector<double> &point) {
-  planning_models::KinematicState state =
-      *collision_models_interface_->getPlanningSceneState();
-  std::map<std::string, double> pos;
-  for (int i = 0; i < num_joints_; i++) {
-    pos[joint_names_[i]] = point[i];
-  }
-  state.setKinematicState(pos);
-
-  return isStateValid(state);
-}
-
-bool CollisionChecker::checkMiddle(const std::vector<double> &first,
-                                   const std::vector<double> &second) {
-  planning_models::KinematicState state =
-      *collision_models_interface_->getPlanningSceneState();
-  std::map<std::string, double> pos;
-  std::vector<std::vector<double> > interpolation =
-      interpolate(first, second, step_size_);
-  for (int i = 0; i < (int)interpolation.size(); i++) {
-    for (int j = 0; j < num_joints_; j++) {
-      pos[joint_names_[j]] = interpolation[i][j];
-    }
-    state.setKinematicState(pos);
-    if (!isStateValid(state)) {
-      return false;
-    }
-  }
-  return true;
-}
+// In old interface, must call acquireScene before checking a path and
+// releaseScene after checking a path. May not need to in new. Do so just to be
+// safe, in case I end up messing around with this stuff.
 
 // if the middle is clear, then store the middle points in new_points
 // if the middle is not clear, then new_points is cleared
 bool CollisionChecker::checkMiddleAndReturnPoints(
     const std::vector<double> &first, const std::vector<double> &second,
     std::vector<std::vector<double> > &new_points) {
-  planning_models::KinematicState state =
-      *collision_models_interface_->getPlanningSceneState();
+
   new_points.clear();
-  std::map<std::string, double> pos;
   std::vector<std::vector<double> > interpolation =
       interpolate(first, second, step_size_);
   for (int i = 0; i < (int)interpolation.size(); i++) {
-    for (int j = 0; j < num_joints_; j++) {
-      pos[joint_names_[j]] = interpolation[i][j];
-    }
-    state.setKinematicState(pos);
-    if (!isStateValid(state)) {
-      return false;
-    }
+    if (!isStateValid(interpolation[i])) return false;
   }
   new_points = interpolation;
   return true;
 }
 
-bool CollisionChecker::isStateValid(
-    const planning_models::KinematicState &state) {
-  if (!state.areJointsWithinBounds(joint_names_)) {
-    return false;
-  } else if (collision_models_interface_->isKinematicStateInCollision(state)) {
-    return false;
-  } else {
-    return true;
+// Call with a list of joint positions corresponding to what the current
+// joint_names are.
+bool CollisionChecker::isStateValid(const ::std::vector<double> &state) {
+  moveit::core::RobotState robot_state = ps_->getCurrentState();
+  std::map<std::string, double> pos;
+  for (int i = 0; i < num_joints_; i++) {
+    pos[joint_names_[i]] = state[i];
   }
+  robot_state.setVariablePositions(pos);
+  // Not sure if this actually checks for joint limits correctly.
+  return ps_->isStateValid(robot_state);
 }

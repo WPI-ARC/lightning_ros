@@ -39,7 +39,6 @@ of its
 #include <math.h>
 #include <vector>
 #include <boost/thread.hpp>
-#include "planning_environment/models/collision_models.h"
 
 #include "lightning/CollisionCheck.h"
 #include "lightning/IntArray.h"
@@ -47,7 +46,6 @@ of its
 #include "lightning/Status.h"
 #include "lightning/collision_checker.h"
 #include "lightning/collision_utils.h"
-#include "arm_navigation_msgs/PlanningScene.h"
 
 class CollisionCheckService {
  public:
@@ -55,17 +53,10 @@ class CollisionCheckService {
     handle_.getParam("step_size", step_size_);
     private_handle_.getParam("num_threads", num_threads_);
     collision_checker_ = new CollisionChecker(step_size_);
-    for (int i = 0; i < num_threads_ - 1; i++) {
-      collision_models_.push_back(
-          new planning_environment::CollisionModels("/robot_description"));
-    }
   }
 
   ~CollisionCheckService() {
     delete collision_checker_;
-    for (int i = 0; i < num_threads_ - 1; i++) {
-      delete getCMPtr(i);
-    }
   }
 
   void run() {
@@ -113,15 +104,10 @@ class CollisionCheckService {
         paths_for_thread.push_back(all_paths[i]);
         indicies_for_thread.push_back(i);
         if (i + 1 >= (unsigned int)((threads_used + 1) * paths_per_thread)) {
-          if (threads_used == 0) {
-            all_threads.push_back(
-                new boost::thread(&CollisionCheckService::i_s_thread_func_first,
-                                  this, paths_for_thread, indicies_for_thread));
-          } else {
-            all_threads.push_back(new boost::thread(
-                &CollisionCheckService::i_s_thread_func_rest, this,
-                paths_for_thread, indicies_for_thread, threads_used - 1));
-          }
+          // TODO: Check thread safety of i_s_thread_func_first.
+          all_threads.push_back(
+              new boost::thread(&CollisionCheckService::i_s_thread_func_first,
+                                this, paths_for_thread, indicies_for_thread));
           threads_used++;
           paths_for_thread.clear();
           indicies_for_thread.clear();
@@ -162,13 +148,8 @@ class CollisionCheckService {
   int num_threads_;
   std::vector<std::vector<std::vector<int> > > all_invalid_sections_;
   boost::mutex invalid_sections_lock_;
-  std::vector<planning_environment::CollisionModels *> collision_models_;
   std::vector<std::string> joint_names_;
   int num_joints_;
-
-  planning_environment::CollisionModels *getCMPtr(int index) {
-    return collision_models_[index];
-  }
 
   void i_s_thread_func_first(
       std::vector<std::vector<std::vector<double> > > paths,
@@ -184,7 +165,7 @@ class CollisionCheckService {
       start_invalid = -1;
       tracking_invalid = false;
       for (unsigned int j = 0; j < paths[i].size(); j++) {
-        if (collision_checker_->checkStateValid(paths[i][j])) {
+        if (collision_checker_->isStateValid(paths[i][j])) {
           if (tracking_invalid) {
             current_invalid_section[0] = start_invalid;
             current_invalid_section[1] = j;
@@ -211,70 +192,6 @@ class CollisionCheckService {
       invalid_sections_lock_.lock();
       all_invalid_sections_[indicies[i]] = invalid_sections_for_path;
       invalid_sections_lock_.unlock();
-    }
-  }
-
-  void i_s_thread_func_rest(
-      std::vector<std::vector<std::vector<double> > > paths,
-      std::vector<int> indicies, int index) {
-    planning_models::KinematicState *state = getCMPtr(index)->setPlanningScene(
-        collision_checker_->getPlanningScene());
-    std::vector<std::vector<int> > invalid_sections_for_path;
-    std::vector<int> current_invalid_section;
-    current_invalid_section.resize(2);
-    int start_invalid = -1;
-    bool tracking_invalid = false;
-    for (unsigned int i = 0; i < paths.size(); i++) {
-      ROS_INFO("Collision check service: working on path %i", indicies[i]);
-      invalid_sections_for_path.clear();
-      start_invalid = -1;
-      tracking_invalid = false;
-      for (unsigned int j = 0; j < paths[i].size(); j++) {
-        if (cmCheckStateValid(paths[i][j], state, index)) {
-          if (tracking_invalid) {
-            current_invalid_section[0] = start_invalid;
-            current_invalid_section[1] = j;
-            invalid_sections_for_path.push_back(current_invalid_section);
-            tracking_invalid = false;
-          }
-        } else {
-          if (j == paths[i].size() - 1) {
-            ROS_INFO("Collision check service: goal state is invalid");
-          }
-          if (!tracking_invalid) {
-            start_invalid = j - 1;
-            tracking_invalid = true;
-          }
-        }
-      }
-      if (tracking_invalid) {  // still tracking an invalid section outside of
-                               // loop, so goal is invalid
-        current_invalid_section[0] = start_invalid;
-        current_invalid_section[1] = paths[i].size();
-        invalid_sections_for_path.push_back(current_invalid_section);
-      }
-      // store invalid sections to return
-      invalid_sections_lock_.lock();
-      all_invalid_sections_[indicies[i]] = invalid_sections_for_path;
-      invalid_sections_lock_.unlock();
-    }
-    getCMPtr(index)->revertPlanningScene(state);
-  }
-
-  bool cmCheckStateValid(const std::vector<double> point,
-                         planning_models::KinematicState *state, int index) {
-    std::map<std::string, double> pos;
-    for (int i = 0; i < num_joints_; i++) {
-      pos[joint_names_[i]] = point[i];
-    }
-    state->setKinematicState(pos);
-
-    if (!state->areJointsWithinBounds(joint_names_)) {
-      return false;
-    } else if (getCMPtr(index)->isKinematicStateInCollision(*state)) {
-      return false;
-    } else {
-      return true;
     }
   }
 };

@@ -42,35 +42,51 @@ of its
 #include <math.h>
 #include <vector>
 
-#include "planning_environment/models/collision_models_interface.h"
-#include "arm_navigation_msgs/PlanningScene.h"
+//#include "planning_environment/models/collision_models_interface.h"
+#include <moveit/collision_detection/collision_world.h>
+#include <moveit/collision_detection/collision_robot.h>
+#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+#include <moveit/planning_scene/planning_scene.h>
+#include <moveit/robot_state/robot_state.h>
+//#include "arm_navigation_msgs/PlanningScene.h"
 #include "lightning/collision_utils.h"
 
+// Class which handles wrapping the moveit collision checking interface with an
+// easier to use interface.
 class CollisionChecker {
  public:
   CollisionChecker(double step_size);
   ~CollisionChecker();
 
   bool collisionModelsInterfaceLoadedModels();
-  const arm_navigation_msgs::PlanningScene &getPlanningScene();
+
+  // Retrieves most recent planning scene.
+  const planning_scene::PlanningScene &getPlanningScene();
+
+  // Returns list of joint names in order.
   const std::vector<std::string> &getJointNames();
+
   bool acquireScene(std::string group_name);
   void releaseScene();
-  bool checkStateValid(const std::vector<double> &point);
-  bool checkMiddle(const std::vector<double> &first,
-                   const std::vector<double> &second);
+
+  // Interpolates between first and second and, if there are no collisions,
+  // returns the result in new_points.
   bool checkMiddleAndReturnPoints(
       const std::vector<double> &first, const std::vector<double> &second,
       std::vector<std::vector<double> > &new_points);
 
+  bool isStateValid(const ::std::vector<double> &state);
+
  private:
-  planning_environment::CollisionModelsInterface *collision_models_interface_;
+  // Various levels of wrappers for getitng planning scene.
+  planning_scene_monitor::PlanningSceneMonitorPtr psm_;
+
+  planning_scene::PlanningScenePtr ps_;
+
   std::vector<std::string> arm_names_;
   std::vector<std::string> joint_names_;
   int num_joints_;
   double step_size_;
-
-  bool isStateValid(const planning_models::KinematicState &state);
 };
 
 #endif  // for COLLISION_CHECKER_H_

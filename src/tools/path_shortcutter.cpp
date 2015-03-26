@@ -138,9 +138,6 @@ class PathShortcutter {
                getLineDistance(new_path[rand1], new_path[rand2]))) {
         if (collision_checker_->checkMiddleAndReturnPoints(
                 new_path[rand1], new_path[rand2], new_points)) {
-          // if (collision_checker_->checkMiddle(new_path[rand1],
-          // new_path[rand2])) {
-          // new_points = interpolate(new_path[rand1], new_path[rand2]);
           new_path.erase(new_path.begin() + rand1 + 1,
                          new_path.begin() + rand2);
           new_path.insert(new_path.begin() + rand1 + 1, new_points.begin(),
