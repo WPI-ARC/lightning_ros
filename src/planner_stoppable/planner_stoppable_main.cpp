@@ -35,12 +35,12 @@ of its
 # POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "lightning/planner_stoppable/ompl_ros_stoppable.h"
+#include "lightning/planner_stoppable/planner_stoppable.h"
 
 int main(int argc, char **argv) {
   if (argc > 2) {
     ros::init(argc, argv, std::string(ros::this_node::getName()));
-    OmplRosStoppable ompl_ros(argv[1], argv[2]);
+    PlannerStoppable ompl_ros(argv[1], argv[2]);
     ompl_ros.run();
     ros::AsyncSpinner spinner(2);
     spinner.start();

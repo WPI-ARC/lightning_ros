@@ -16,7 +16,7 @@ berenson@eecs.berkeley.edu)
 #    copyright notice, this list of conditions and the following
 #    disclaimer in the documentation and/or other materials provided
 #    with the distribution.
-#  * Neither the name of University of California, Berkeley nor the names 
+#  * Neither the name of University of California, Berkeley nor the names
 of its
 #    contributors may be used to endorse or promote products derived
 #    from this software without specific prior written permission.
@@ -36,7 +36,6 @@ of its
 """
 
 import roslib
-roslib.load_manifest("lightning")
 import rospy
 
 import threading
@@ -44,8 +43,8 @@ import sys
 
 from lightning.msg import Float64Array, Float64Array2D, DrawPoints
 from lightning.srv import CollisionCheck, CollisionCheckRequest, PathShortcut, PathShortcutRequest
-from arm_navigation_msgs.srv import GetMotionPlan, GetMotionPlanRequest
-from arm_navigation_msgs.msg import JointConstraint
+from moveit_msgs.srv import GetMotionPlan, GetMotionPlanRequest
+from moveit_msgs.msg import JointConstraint
 
 COLLISION_CHECK = "collision_check"
 SHORTCUT_PATH_NAME = "shortcut_path"
@@ -69,7 +68,7 @@ class PlanTrajectoryWrapper:
             self.released_event.wait()
             planner_number = self._wait_for_planner()
         return planner_number
-   
+
     #need to call release_planner after done calling plan_trajectory
     def release_planner(self, index):
         self.planner_lock.acquire()
@@ -170,11 +169,11 @@ class DrawPointsWrapper:
     MAGENTA = (1.0, 0.0, 1.0)
     YELLOW = (1.0, 1.0, 0.0)
     GREENBLUE = (0.0, 1.0, 1.0)
-    
+
     #point types
     ANGLES = "angles"
     POSES = "poses"
-    
+
     def __init__(self):
         self.display_points_publisher = rospy.Publisher(DISPLAY_POINTS, DrawPoints)
 

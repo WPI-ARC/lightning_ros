@@ -16,7 +16,7 @@ berenson@eecs.berkeley.edu)
 #    copyright notice, this list of conditions and the following
 #    disclaimer in the documentation and/or other materials provided
 #    with the distribution.
-#  * Neither the name of University of California, Berkeley nor the names 
+#  * Neither the name of University of California, Berkeley nor the names
 of its
 #    contributors may be used to endorse or promote products derived
 #    from this software without specific prior written permission.
@@ -36,7 +36,6 @@ of its
 """
 
 import roslib
-roslib.load_manifest("lightning")
 import rospy
 import actionlib
 
@@ -91,7 +90,7 @@ class PathLibrary:
         self.dtw_dist = dtw_dist
         self.invalid_section_wrapper = InvalidSectionWrapper()
         self.split_paths_function = self._largest_range_split #self._consecutive_split
-        
+
         self._init_lib_vars()
 
     #variables that keep track of state for a single library
@@ -109,7 +108,7 @@ class PathLibrary:
         f = open(self._get_full_filename(filename), 'w');
         f.write("%s\n" % (string.zfill('0', len(str(self.node_size)))));
         f.close();
-    
+
     def _init_sgs_file(self, sg_node_name):
         f = open(self._get_full_filename(sg_node_name), 'w');
         f.write("%s\n" % (string.zfill('0', len(str(self.sg_node_size)))));
@@ -119,7 +118,7 @@ class PathLibrary:
         count = 0
         for f in os.listdir(self._get_full_lib_name()):
             if f.find(SG_ROOT_NAME) != -1:
-                count += self._read_num_sgs_from_file(f)        
+                count += self._read_num_sgs_from_file(f)
         return count
 
     def _get_next_path_id(self):
@@ -141,7 +140,7 @@ class PathLibrary:
                 current_max = pid
         f.close()
         return current_max
-        
+
     def _load_trees(self):
         tree_load_file = open(self._get_full_filename(PATH_TREE_NAME), 'r');
         self.node_size, self.tree = pickle.load(tree_load_file);
@@ -149,12 +148,12 @@ class PathLibrary:
         sg_tree_load_file = open(self._get_full_filename(SG_TREE_NAME), 'r');
         self.sg_node_size, self.sg_tree = pickle.load(sg_tree_load_file);
         sg_tree_load_file.close();
-    
+
     def _store_current_sg_tree(self):
         sg_tree_file = open(self._get_full_filename(SG_TREE_NAME), 'w')
         pickle.dump((self.sg_node_size, self.sg_tree), sg_tree_file);
         sg_tree_file.close();
-        
+
     def _store_current_path_tree(self):
         tree_file = open(self._get_full_filename(PATH_TREE_NAME), 'w')
         pickle.dump((self.node_size, self.tree), tree_file);
@@ -166,7 +165,7 @@ class PathLibrary:
 
     def _remove_path_file(self, filename):
         os.remove(self._get_full_filename(filename));
-    
+
     def _remove_sg_file(self, filename):
         os.remove(self._get_full_filename(filename));
 
@@ -220,7 +219,7 @@ class PathLibrary:
         self.next_path_id = 1
         self.current_num_dims = len(joint_names)
         self.sg_cache = dict()
-    
+
     def _delete_library_files(self, lib_name):
         for f in os.listdir(self._get_full_lib_name(lib_name)):
             os.remove(self._get_full_filename(f, lib_name))
@@ -235,7 +234,7 @@ class PathLibrary:
             self._delete_library_files(lib)
             os.rmdir(self._get_full_lib_name(lib))
             return True
-        
+
     def delete_path_by_id(self, pid, robot_name, joint_names):
         self._load_library(robot_name, joint_names)
         current = None
@@ -264,7 +263,7 @@ class PathLibrary:
                 return True
         rospy.loginfo("Path library: path with id %i does not exist in library for robot %s and joints %s" % (pid, robot_name, joint_names))
         return False
-                         
+
     #to force store a path, set prev_path to None
     def store_path(self, new_path, robot_name, joint_names, prev_path=None):
         if not self._load_library(robot_name, joint_names):
@@ -360,7 +359,7 @@ class PathLibrary:
             elif directions[i] == 'l':
                 nodes.append((counts, current_node.right));
                 current_node = current_node.left;
-        while len(nodes) > 0: 
+        while len(nodes) > 0:
             current_count, current_node = nodes.pop();
             if current_node.name != path_leaf_node.name:
                 if current_node.is_leaf():
@@ -482,11 +481,11 @@ class PathLibrary:
     #sets split value for the tree_node and returns the split paths
     def _do_path_split(self, tree_node, paths):
         index_function = (lambda x: x[1][tree_node.split_state][tree_node.split_index])
-        if tree_node.name not in self.sg_cache.keys():       
+        if tree_node.name not in self.sg_cache.keys():
             self._load_sg_cache(tree_node.name)
         temp_paths = sorted(paths, key=(lambda t: index_function(t)))
         current_split_value = len(temp_paths)/2
-        
+
         #send all paths with same value at split index to the left
         while current_split_value < len(temp_paths) and index_function(temp_paths[current_split_value-1]) == index_function(temp_paths[current_split_value]):
             current_split_value += 1
@@ -500,7 +499,7 @@ class PathLibrary:
                 return (sorted(temp_paths, key=lambda path_with_id: path_with_id[0])[:-1], [])
         tree_node.split_value = (index_function(temp_paths[current_split_value-1])+index_function(temp_paths[current_split_value]))/2.0
         return (temp_paths[:current_split_value], temp_paths[current_split_value:]);
-    
+
     def _read_num_paths_from_file(self, filename):
         f = open(self._get_full_filename(filename), 'r');
         ret = int(f.next().strip());
@@ -527,7 +526,7 @@ class PathLibrary:
     #when split a path node, need to update path names for start-goals
     def _updateSGs(self, pathNode):
         sg_leaf_name = self._get_sg_leaf_by_path_name(pathNode.name).name;
-        if pathNode.name not in self.sg_cache.keys():       
+        if pathNode.name not in self.sg_cache.keys():
             self._load_sg_cache(pathNode.name);
         sgs = self.sg_cache; #cache gets updated while sgs is changed
         toUpdate = sgs.pop(pathNode.name);
@@ -549,7 +548,7 @@ class PathLibrary:
             for pid, sg in sgs[path_node_name]:
                 f.write("%i %s %s\n" % (pid, path_node_name, self._sg_to_string(sg)));
         f.close();
-        
+
     # precondition: increased path count is less than or equal to self.node_size
     def _change_path_count_in_file(self, filename, amt):
         f = open(self._get_full_filename(filename), 'r+');
@@ -590,7 +589,7 @@ class PathLibrary:
         num_sgs_before_add = self._read_num_sgs_from_file(sg_node_name)
         paths_with_ids = self._write_paths_to_file(path_node_name, path_list)
         new_sgs = [(pid, self._get_sg_from_path(p)) for pid, p in paths_with_ids]
-        if path_node_name not in self.sg_cache.keys():       
+        if path_node_name not in self.sg_cache.keys():
             self._load_sg_cache(path_node_name)
         if not self.sg_cache.has_key(path_node_name):
             self.sg_cache[path_node_name] = []
@@ -700,7 +699,7 @@ class PathLibrary:
             return 0;
         else:
             return sum([section[1]-section[0]-1 for section in invalid_sections]);
-            
+
     def _get_path_leaf_by_sg(self, s, g):
         current_node = self.tree;
         while not current_node.is_leaf():
@@ -721,7 +720,7 @@ class PathLibrary:
         self.sg_cache = self._get_sgs(sg_node_name)
         if len(self.sg_cache.keys()) == 0:
             self.sg_cache[ROOT_NAME] = []
-    
+
     #returns a list of (pid, path_name, path) corresponding to the list of (pid, path_name, sg) in sgs
     def _get_paths_of_sgs(self, sgs):
         rospy.loginfo("Path library: %s" % (str(sgs)))

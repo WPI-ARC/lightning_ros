@@ -17,7 +17,7 @@ berenson@eecs.berkeley.edu)
 #    copyright notice, this list of conditions and the following
 #    disclaimer in the documentation and/or other materials provided
 #    with the distribution.
-#  * Neither the name of University of California, Berkeley nor the names 
+#  * Neither the name of University of California, Berkeley nor the names
 of its
 #    contributors may be used to endorse or promote products derived
 #    from this software without specific prior written permission.
@@ -37,14 +37,14 @@ of its
 """
 
 import roslib
-roslib.load_manifest("lightning");
+#roslib.load_manifest("lightning");
 import rospy
 import actionlib
 import threading
 
 from lightning.msg import RRAction, RRGoal, PFSAction, PFSGoal, Float64Array, StopPlanning
 from lightning.srv import ManagePathLibrary, ManagePathLibraryRequest, PathShortcut, PathShortcutRequest
-from arm_navigation_msgs.srv import GetMotionPlan, GetMotionPlanResponse
+from moveit_msgs.srv import GetMotionPlan, GetMotionPlanResponse
 from tools.PathTools import ShortcutPathWrapper, DrawPointsWrapper
 from trajectory_msgs.msg import JointTrajectoryPoint
 
@@ -136,13 +136,13 @@ class Lightning:
             self.pfs_client.wait_for_server()
             rospy.loginfo("Lightning: Sending goal to PFS")
             self.pfs_client.send_goal(pfs_client_goal, done_cb=self._pfs_done_cb)
-        
+
         self.lightning_response_ready_event.wait()
         if self.lightning_response.error_code.val != self.lightning_response.error_code.SUCCESS:
             rospy.loginfo("Lightning: did not find a path")
         else:
             rospy.loginfo("Lightning: Lightning is responding with a path")
-        
+
         return self.lightning_response
 
     def _print_error(self, msg):
@@ -152,7 +152,7 @@ class Lightning:
         if request.motion_plan_request.allowed_planning_time.to_sec() <= 0:
             self._print_error("Lightning: requires allowed_planning_time to be greater than 0")
             return None
-        
+
         if len(request.motion_plan_request.goal_constraints.position_constraints) > 0:
             self._print_error("Lightning: does not handle position constraints")
             return None
@@ -187,9 +187,9 @@ class Lightning:
 
                 self.lightning_response = self._create_get_motion_plan_response(shortcut)
                 self.lightning_response_ready_event.set()
-                
+
                 self.done_lock.release()
-                
+
                 #display new path in rviz
                 if self.draw_points:
                     self.draw_points_wrapper.draw_points(shortcut, self.current_group_name, "final", DrawPointsWrapper.ANGLES, DrawPointsWrapper.GREEN, 0.1)
@@ -217,12 +217,12 @@ class Lightning:
 
                 pfsPath = [p.values for p in result.path]
                 shortcut = self.shortcut_path_wrapper.shortcut_path(pfsPath, self.current_group_name)
-                
+
                 self.lightning_response = self._create_get_motion_plan_response(shortcut)
                 self.lightning_response_ready_event.set()
-                
+
                 self.done_lock.release()
-                
+
                 #display new path in rviz
                 if self.draw_points:
                     self.draw_points_wrapper.draw_points(shortcut, self.current_group_name, "final", DrawPointsWrapper.ANGLES, DrawPointsWrapper.GREEN, 0.1)
@@ -267,7 +267,7 @@ class Lightning:
             store_request.retrieved_path.append(jtp)
         store_response = self.manage_library_client(store_request)
         return (store_response.path_stored, store_response.num_library_paths)
-        
+
     def _send_stop_pfs_planning(self):
         self.stop_pfs_publisher.publish(self._create_stop_planning_message())
 

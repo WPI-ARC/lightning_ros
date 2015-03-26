@@ -17,7 +17,7 @@ berenson@eecs.berkeley.edu)
 #    copyright notice, this list of conditions and the following
 #    disclaimer in the documentation and/or other materials provided
 #    with the distribution.
-#  * Neither the name of University of California, Berkeley nor the names 
+#  * Neither the name of University of California, Berkeley nor the names
 of its
 #    contributors may be used to endorse or promote products derived
 #    from this software without specific prior written permission.
@@ -37,7 +37,7 @@ of its
 """
 
 import roslib
-roslib.load_manifest("lightning")
+#roslib.load_manifest("lightning")
 import rospy
 import actionlib
 import threading

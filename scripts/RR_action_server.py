@@ -17,7 +17,7 @@ berenson@eecs.berkeley.edu)
 #    copyright notice, this list of conditions and the following
 #    disclaimer in the documentation and/or other materials provided
 #    with the distribution.
-#  * Neither the name of University of California, Berkeley nor the names 
+#  * Neither the name of University of California, Berkeley nor the names
 of its
 #    contributors may be used to endorse or promote products derived
 #    from this software without specific prior written permission.
@@ -37,7 +37,6 @@ of its
 """
 
 import roslib
-roslib.load_manifest("lightning")
 import rospy
 import actionlib
 import threading
@@ -77,7 +76,7 @@ class RRNode:
         self.repaired_sections_lock = threading.Lock()
         self.repaired_sections = []
         self.working_lock = threading.Lock() #to ensure that node is not doing RR and doing a library management action at the same time
-        
+
         #if draw_points is True, then display points in rviz
         self.draw_points = rospy.get_param("draw_points")
         if self.draw_points:
@@ -183,7 +182,7 @@ class RRNode:
     def _path_repair(self, original_path, planning_time, invalid_sections=None, use_parallel_repairing=True):
         zeros_tuple = tuple([0 for i in xrange(len(self.current_joint_names))])
         rospy.loginfo("RR action server: got path with %d points" % len(original_path))
-        
+
         if invalid_sections is None:
             invalid_sections = self.invalid_section_wrapper.getInvalidSectionsForPath(original_path, self.current_group_name)
         rospy.loginfo("RR action server: invalid sections: %s" % (str(invalid_sections)))
@@ -194,7 +193,7 @@ class RRNode:
             if invalid_sections[-1][1] == len(original_path):
                 rospy.loginfo("RR action server: Goal is not a valid state...nothing can be done")
                 return None
-            
+
             if use_parallel_repairing:
                 #multi-threaded repairing
                 self.repaired_sections = [None for i in xrange(len(invalid_sections))]
@@ -243,7 +242,7 @@ class RRNode:
             rospy.loginfo("RR action server: Trajectory after replan has %d points" % len(new_path))
         else:
             new_path = original_path
-            
+
         rospy.loginfo("RR action server: new trajectory has %i points" % (len(new_path)))
         return new_path
 
