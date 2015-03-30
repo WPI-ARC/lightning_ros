@@ -2,23 +2,21 @@
     <!-- launches gazebo without rviz for simple testing; lightning and the test node must be launched separately -->
 
     <param name="/use_sim_time" value="true" />
-    <node name="gazebo" pkg="gazebo" type="gazebo" args="-r $(find gazebo_worlds)/worlds/empty.world" respawn="false"/>
-    <node name="gazebo_gui" pkg="gazebo" type="gui" respawn="false" output="screen"/>
 
     <!-- start pr2 robot -->
-    <include file="$(find pr2_gazebo)/launch/pr2.launch"/>
+    <include file="$(find pr2_gazebo)/launch/pr2_empty_world.launch"/>
 
     <!-- load perception -->
     <include file="$(find pr2_arm_navigation_perception)/launch/laser-perception.launch"/>
 
     <!-- load planning_environment -->
-    <include file="$(find planning_environment)/launch/environment_server.launch"/>
+    <include file="$(find pr2_moveit_config)/launch/move_group.launch"/>
 
     <!--for this example, do not use the collision map-->
     <param name="/environment_server/use_collision_map" value="false" />
 
     <!-- load ik -->
-    <include file="$(find pr2_arm_navigation_kinematics)/launch/right_arm_collision_free_ik.launch"/> 
-    <include file="$(find pr2_arm_navigation_kinematics)/launch/left_arm_collision_free_ik.launch"/> 
+    <include file="$(find pr2_arm_navigation_kinematics)/launch/right_arm_collision_free_ik.launch"/>
+    <include file="$(find pr2_arm_navigation_kinematics)/launch/left_arm_collision_free_ik.launch"/>
 
 </launch>

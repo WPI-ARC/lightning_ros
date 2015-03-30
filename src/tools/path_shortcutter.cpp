@@ -50,6 +50,7 @@ class PathShortcutter {
  public:
   PathShortcutter() : private_handle_("~") {
     handle_.getParam("step_size", step_size_);
+    ros::service::waitForService("get_planning_scene");
     private_handle_.getParam("num_iterations", num_iters_);
     private_handle_.getParam("ignore_fraction", distance_fraction_);
     collision_checker_ = new CollisionChecker(step_size_);

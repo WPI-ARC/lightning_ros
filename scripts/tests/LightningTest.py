@@ -17,7 +17,7 @@ berenson@eecs.berkeley.edu)
 #    copyright notice, this list of conditions and the following
 #    disclaimer in the documentation and/or other materials provided
 #    with the distribution.
-#  * Neither the name of University of California, Berkeley nor the names 
+#  * Neither the name of University of California, Berkeley nor the names
 of its
 #    contributors may be used to endorse or promote products derived
 #    from this software without specific prior written permission.
@@ -44,8 +44,8 @@ from BoxAdder import BoxAdder
 from tools.PathTools import InvalidSectionWrapper
 from pathlib.PathLibrary import PathLibrary
 from gazebo_msgs.srv import SetModelState, SetModelStateRequest, SetModelConfiguration, SetModelConfigurationRequest
-from arm_navigation_msgs.srv import GetMotionPlan, GetMotionPlanRequest
-from arm_navigation_msgs.msg import JointConstraint
+from moveit_msgs.srv import GetMotionPlan, GetMotionPlanRequest
+from moveit_msgs.msg import JointConstraint
 from pr2_mechanism_msgs.srv import SwitchController, SwitchControllerRequest
 from kinematics_msgs.srv import GetKinematicSolverInfo, GetKinematicSolverInfoRequest, GetConstraintAwarePositionIK, GetConstraintAwarePositionIKRequest
 
@@ -146,7 +146,7 @@ class LightningTester:
         ik_info_req = GetKinematicSolverInfoRequest()
         rospy.wait_for_service(IK_INFO_NAME)
         ik_info_res = ik_solver_info_service_proxy(ik_info_req)
-        
+
         ik_solver_service_proxy = rospy.ServiceProxy(IK_NAME, GetConstraintAwarePositionIK)
         ik_solve_req = GetConstraintAwarePositionIKRequest()
         ik_solve_req.timeout = rospy.Duration(5.0)
@@ -162,7 +162,7 @@ class LightningTester:
         ik_solve_req.ik_request.ik_seed_state.joint_state.name = ik_info_res.kinematic_solver_info.joint_names;
         for i in xrange(len(ik_info_res.kinematic_solver_info.joint_names)):
             ik_solve_req.ik_request.ik_seed_state.joint_state.position.append((ik_info_res.kinematic_solver_info.limits[i].min_position + ik_info_res.kinematic_solver_info.limits[i].max_position)/2.0)
-        
+
         rospy.wait_for_service(IK_NAME)
         ik_solve_res = ik_solver_service_proxy(ik_solve_req)
         if ik_solve_res.error_code.val == ik_solve_res.error_code.SUCCESS:
@@ -313,7 +313,7 @@ if __name__ == "__main__":
         left_start = [1.5777, 1.2081, -0.0126, -1.2829, 1.5667, -1.5655, 1.64557]
         tester.switch_off_controller(LEFT_ARM_JOINT_CONTROLLER)
         tester.move_to_joint_configs(LEFT_ARM_JOINT_CONTROLLER, left_start)
-        
+
         if len(sys.argv) >= 4 and sys.argv[1].find("table") == 0 and sys.argv[2] == "right":
             tester.run_iterations_table(right_start, int(sys.argv[3]), False, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planning_time=20.0, waiting_time=1.0)
         elif len(sys.argv) >= 4 and sys.argv[1].find("box") == 0 and sys.argv[2] == "right":

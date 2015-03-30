@@ -50,9 +50,11 @@ from tools.PathTools import PlanTrajectoryWrapper
 PFS_NODE_NAME = "pfs_node";
 STOP_PLANNER_NAME = "stop_pfs_planning";
 STOP_PFS_NAME = "stop_all_pfs";
+SET_PLANNING_SCENE_DIFF_NAME = "get_planning_scene";
 
 class PFSNode:
     def __init__(self):
+        rospy.wait_for_service(SET_PLANNING_SCENE_DIFF_NAME); #make sure the environment server is ready before starting up
         self.plan_trajectory_wrapper = PlanTrajectoryWrapper("pfs")
         self.planner_config_name = rospy.get_param("planner_config_name")
         self.stop_lock = threading.Lock()
@@ -62,7 +64,7 @@ class PFSNode:
         self.pfs_server = actionlib.SimpleActionServer(PFS_NODE_NAME, PFSAction, execute_cb=self._get_path, auto_start=False)
         self.pfs_server.start()
         self.stop_pfs_subscriber = rospy.Subscriber(STOP_PFS_NAME, StopPlanning, self._stop_pfs_planner)
-        self.stop_pfs_planner_publisher = rospy.Publisher(STOP_PLANNER_NAME, StopPlanning)
+        self.stop_pfs_planner_publisher = rospy.Publisher(STOP_PLANNER_NAME, StopPlanning, queue_size=10)
 
     def _get_stop_value(self):
         self.stop_lock.acquire()

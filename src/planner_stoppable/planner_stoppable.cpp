@@ -8,6 +8,7 @@ PlannerStoppable::PlannerStoppable(std::string name, std::string stop_name)
 }
 
 void PlannerStoppable::run() {
+  ros::service::waitForService("get_planning_scene");
 
   // Start monitor for keeping planningscene up-to-date.
 
@@ -42,8 +43,8 @@ bool PlannerStoppable::initialize() {
   // TODO: allow overriding of default service and topic subscriptions for
   // monitor_.
   // Get initial planning scene state from /get_planning_scene service.
-  monitor_->requestPlanningSceneState();
-  monitor_->startSceneMonitor(); // Default "/planning_scene"
+  monitor_->requestPlanningSceneState("get_planning_scene");
+  monitor_->startSceneMonitor("move_group/monitored_planning_scene"); // Default "/planning_scene"
 
   // We will now construct a loader to load a planner, by name.
   // Note that we are using the ROS pluginlib library here.
@@ -54,7 +55,7 @@ bool PlannerStoppable::initialize() {
   // We will get the name of planning plugin we want to load
   // from the ROS param server, and then load the planner
   // making sure to catch all exceptions.
-  if (!node_handle_.getParam("planning_plugin", planner_plugin_name))
+  if (!node_handle_.getParam("default_planner_config", planner_plugin_name))
     ROS_FATAL_STREAM("Could not find planner plugin name");
   try {
     planner_plugin_loader.reset(

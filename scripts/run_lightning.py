@@ -53,7 +53,7 @@ PFS_NODE_NAME = "pfs_node"
 STOP_RR_NAME = "stop_all_rr"
 STOP_PFS_NAME = "stop_all_pfs"
 LIGHTNING_SERVICE = "lightning_get_path"
-SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/get_planning_scene";
+SET_PLANNING_SCENE_DIFF_NAME = "get_planning_scene";
 MANAGE_LIBRARY = "manage_path_library"
 
 class Lightning:
@@ -73,8 +73,8 @@ class Lightning:
         self.current_joint_names = []
         self.current_group_name = ""
         self.robot_name = rospy.get_param("robot_name")
-        self.stop_rr_publisher = rospy.Publisher(STOP_RR_NAME, StopPlanning)
-        self.stop_pfs_publisher = rospy.Publisher(STOP_PFS_NAME, StopPlanning)
+        self.stop_rr_publisher = rospy.Publisher(STOP_RR_NAME, StopPlanning, queue_size=10)
+        self.stop_pfs_publisher = rospy.Publisher(STOP_PFS_NAME, StopPlanning, queue_size=10)
         self.rr_returned, self.pfs_returned = False, False
         self.done_lock = threading.Lock()
         self.lightning_response_ready_event = threading.Event()
@@ -98,7 +98,7 @@ class Lightning:
         start_and_goal = self._is_valid_motion_plan_request(request)
         if start_and_goal is None:
             response = GetMotionPlanResponse()
-            response.error_code.val = response.error_code.PLANNING_FAILED
+            response.motion_plan_response.error_code.val = response.motion_plan_response.error_code.PLANNING_FAILED
             return response
         s, g = start_and_goal
 
@@ -112,7 +112,7 @@ class Lightning:
             self.draw_points_wrapper.clear_points()
 
         #start a timer that stops planners if they take too long
-        timer = threading.Thread(target=self._lightning_timeout, args=(request.motion_plan_request.allowed_planning_time.to_sec(),))
+        timer = threading.Thread(target=self._lightning_timeout, args=(request.motion_plan_request.allowed_planning_time,))
         timer.start()
 
         if self.use_rr:
@@ -121,7 +121,8 @@ class Lightning:
             rr_client_goal.goal = g
             rr_client_goal.joint_names = self.current_joint_names
             rr_client_goal.group_name = self.current_group_name
-            rr_client_goal.allowed_planning_time = request.motion_plan_request.allowed_planning_time
+            rr_client_goal.allowed_planning_time = rospy.Duration(
+                request.motion_plan_request.allowed_planning_time)
             self.rr_client.wait_for_server()
             rospy.loginfo("Lightning: Sending goal to RR")
             self.rr_client.send_goal(rr_client_goal, done_cb=self._rr_done_cb)
@@ -132,13 +133,14 @@ class Lightning:
             pfs_client_goal.goal = g
             pfs_client_goal.joint_names = self.current_joint_names
             pfs_client_goal.group_name = self.current_group_name
-            pfs_client_goal.allowed_planning_time = request.motion_plan_request.allowed_planning_time
+            pfs_client_goal.allowed_planning_time = rospy.Duration(
+                request.motion_plan_request.allowed_planning_time)
             self.pfs_client.wait_for_server()
             rospy.loginfo("Lightning: Sending goal to PFS")
             self.pfs_client.send_goal(pfs_client_goal, done_cb=self._pfs_done_cb)
 
         self.lightning_response_ready_event.wait()
-        if self.lightning_response.error_code.val != self.lightning_response.error_code.SUCCESS:
+        if self.lightning_response.motion_plan_response.error_code.val != self.lightning_response.motion_plan_response.error_code.SUCCESS:
             rospy.loginfo("Lightning: did not find a path")
         else:
             rospy.loginfo("Lightning: Lightning is responding with a path")
@@ -149,17 +151,17 @@ class Lightning:
         rospy.logerr("***ERROR*** %s ***ERROR***" % (msg))
 
     def _is_valid_motion_plan_request(self, request):
-        if request.motion_plan_request.allowed_planning_time.to_sec() <= 0:
+        if request.motion_plan_request.allowed_planning_time <= 0:
             self._print_error("Lightning: requires allowed_planning_time to be greater than 0")
             return None
 
-        if len(request.motion_plan_request.goal_constraints.position_constraints) > 0:
+        if len(request.motion_plan_request.goal_constraints[0].position_constraints) > 0:
             self._print_error("Lightning: does not handle position constraints")
             return None
 
         s = list(request.motion_plan_request.start_state.joint_state.position)
         g = []
-        for jc in request.motion_plan_request.goal_constraints.joint_constraints:
+        for jc in request.motion_plan_request.goal_constraints[0].joint_constraints:
             if jc.tolerance_above != 0 or jc.tolerance_below != 0:
                 self._print_error("Lightning: does not handle tolerances")
                 return None
@@ -204,7 +206,7 @@ class Lightning:
             rospy.loginfo("Lightning: Call to RR did not return a path")
             if not self.use_pfs or (self.pfs_returned and self.lightning_response is None):
                 self.lightning_response = GetMotionPlanResponse()
-                self.lightning_response.error_code.val = self.lightning_response.error_code.PLANNING_FAILED
+                self.lightning_response.motion_plan_response.error_code.val = self.lightning_response.motion_plan_response.error_code.PLANNING_FAILED
                 self.lightning_response_ready_event.set()
         self.done_lock.release()
 
@@ -237,19 +239,19 @@ class Lightning:
             rospy.loginfo("Lightning: Call to PFS did not return a path")
             if not self.use_rr or (self.rr_returned and self.lightning_response is None):
                 self.lightning_response = GetMotionPlanResponse()
-                self.lightning_response.error_code.val = self.lightning_response.error_code.PLANNING_FAILED
+                self.lightning_response.motion_plan_response.error_code.val = self.lightning_response.motion_plan_response.error_code.PLANNING_FAILED
                 self.lightning_response_ready_event.set()
         self.done_lock.release()
 
     def _create_get_motion_plan_response(self, path):
         response = GetMotionPlanResponse()
-        response.error_code.val = response.error_code.SUCCESS
-        response.trajectory.joint_trajectory.points = []
+        response.motion_plan_response.error_code.val = response.motion_plan_response.error_code.SUCCESS
+        response.motion_plan_response.trajectory.joint_trajectory.points = []
         for pt in path:
             jtp = JointTrajectoryPoint()
             jtp.positions = pt
-            response.trajectory.joint_trajectory.points.append(jtp)
-        response.trajectory.joint_trajectory.joint_names = self.current_joint_names
+            response.motion_plan_response.trajectory.joint_trajectory.points.append(jtp)
+        response.motion_plan_response.trajectory.joint_trajectory.joint_names = self.current_joint_names
         return response
 
     def _store_path(self, final_path, retrieved_path):

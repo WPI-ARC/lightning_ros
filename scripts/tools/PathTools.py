@@ -44,7 +44,7 @@ import sys
 from lightning.msg import Float64Array, Float64Array2D, DrawPoints
 from lightning.srv import CollisionCheck, CollisionCheckRequest, PathShortcut, PathShortcutRequest
 from moveit_msgs.srv import GetMotionPlan, GetMotionPlanRequest
-from moveit_msgs.msg import JointConstraint
+from moveit_msgs.msg import JointConstraint, Constraints
 
 COLLISION_CHECK = "collision_check"
 SHORTCUT_PATH_NAME = "shortcut_path"
@@ -95,22 +95,23 @@ class PlanTrajectoryWrapper:
         planner_client = rospy.ServiceProxy(self.planners[planner_number], GetMotionPlan)
         rospy.loginfo("Plan Trajectory Wrapper: got a plan_trajectory request for %s with start = %s and goal = %s" % (self.planners[planner_number], start_point, goal_point))
         req = GetMotionPlanRequest()
-        req.motion_plan_request.workspace_parameters.workspace_region_pose.header.stamp = rospy.get_rostime()
+        req.motion_plan_request.workspace_parameters.header.stamp = rospy.get_rostime()
         req.motion_plan_request.group_name = group_name
         req.motion_plan_request.num_planning_attempts = 1
-        req.motion_plan_request.allowed_planning_time = rospy.Duration(planning_time)
+        req.motion_plan_request.allowed_planning_time = planning_time
         req.motion_plan_request.planner_id = planner_config_name #using RRT planner by default
 
         req.motion_plan_request.start_state.joint_state.header.stamp = rospy.get_rostime()
         req.motion_plan_request.start_state.joint_state.name = joint_names
         req.motion_plan_request.start_state.joint_state.position = start_point
 
-        req.motion_plan_request.goal_constraints.joint_constraints = []
+        req.motion_plan_request.goal_constraints.append(Constraints())
+        req.motion_plan_request.goal_constraints[0].joint_constraints = []
         for i in xrange(len(joint_names)):
             temp_constraint = JointConstraint()
             temp_constraint.joint_name = joint_names[i]
             temp_constraint.position = goal_point[i]
-            req.motion_plan_request.goal_constraints.joint_constraints.append(temp_constraint)
+            req.motion_plan_request.goal_constraints[0].joint_constraints.append(temp_constraint)
 
         #call the planner
         rospy.wait_for_service(self.planners[planner_number])
@@ -122,8 +123,8 @@ class PlanTrajectoryWrapper:
             return None
 
         rospy.loginfo("Plan Trajectory Wrapper: %s returned" % (self.planners[planner_number]))
-        if response.error_code.val == response.error_code.SUCCESS:
-            return [pt.positions for pt in response.trajectory.joint_trajectory.points]
+        if response.motion_plan_response.error_code.val == response.motion_plan_response.error_code.SUCCESS:
+            return [pt.positions for pt in response.motion_plan_response.trajectory.joint_trajectory.points]
         else:
             rospy.loginfo("Plan Trajectory Wrapper: service call to %s was unsuccessful" % planner_client.resolved_name)
             return None

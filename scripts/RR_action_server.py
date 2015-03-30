@@ -71,7 +71,7 @@ class RRNode:
         self.rr_server = actionlib.SimpleActionServer(RR_NODE_NAME, RRAction, execute_cb=self._retrieve_repair, auto_start=False)
         self.rr_server.start()
         self.stop_rr_subscriber = rospy.Subscriber(STOP_RR_NAME, StopPlanning, self._stop_rr_planner)
-        self.stop_rr_planner_publisher = rospy.Publisher(STOP_PLANNER_NAME, StopPlanning)
+        self.stop_rr_planner_publisher = rospy.Publisher(STOP_PLANNER_NAME, StopPlanning, queue_size=10)
         self.manage_library_service = rospy.Service(MANAGE_LIBRARY, ManagePathLibrary, self._do_manage_action)
         self.repaired_sections_lock = threading.Lock()
         self.repaired_sections = []

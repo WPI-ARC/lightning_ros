@@ -10,34 +10,43 @@
   <arg if="$(arg use_left_arm)"       name="left_arm_text" value="left" />
   <arg unless="$(arg use_left_arm)"   name="left_arm_text" value="" />
   <arg name="arm_config" value="$(arg right_arm_text)_$(arg left_arm_text)" />
-  
-  <include file="$(find pr2_machine)/$(env ROBOT).machine" />  
 
-  <arg name="planner_type" value="RRTConnectkConfig1" />
+  <include file="$(find pr2_machine)/$(env ROBOT).machine" />
+
+  <!-- NOTE TODO XXX: may require load_robot_description arg set to true. -->
+  <include file="$(find pr2_moveit_config)/launch/move_group.launch" />
+
+  <arg name="planner_type" value="ompl_interface/OMPLPlanner" />
   <param name="planner_config_name" value="$(arg planner_type)" />
- 
+
   <!-- send additional description parameters -->
-  <include file="$(find pr2_arm_navigation_config)/launch/pr2_planning_environment.launch" />
+  <!--<include file="$(find pr2_moveit_config)/launch/move_group.launch" /> -->
 
   <!-- can use multiple rr planners for repairing -->
   <!-- currently, two RR planners are used: to change the number used, add another rr_planner node with the next index -->
-  <node machine="c2" pkg="lightning" type="planner_stoppable_main" args="rr_planner0 stop_rr_planning" name="rr_planner_node0" output="screen">
+  <node machine="c2" pkg="lightning" type="planner_stoppable" args="rr_planner0 stop_rr_planning" name="rr_planner_node0" output="screen">
     <param name="default_planner_config" type="string" value="$(arg planner_type)"/>
+    <!--
     <rosparam command="load" file="$(find lightning)/config/$(arg arm_config)_arm_groups.yaml" />
     <rosparam command="load" file="$(find lightning)/config/ompl_planning.yaml" />
+    -->
   </node>
 
-  <node machine="c2" pkg="lightning" type="planner_stoppable_main" args="rr_planner1 stop_rr_planning" name="rr_planner_node1" output="screen">    
+  <!--
+  <node machine="c2" pkg="lightning" type="planner_stoppable" args="rr_planner1 stop_rr_planning" name="rr_planner_node1" output="screen">
     <param name="default_planner_config" type="string" value="$(arg planner_type)"/>
     <rosparam command="load" file="$(find lightning)/config/$(arg arm_config)_arm_groups.yaml" />
     <rosparam command="load" file="$(find lightning)/config/ompl_planning.yaml" />
   </node>
-  
+  -->
+
   <!-- should only need one pfs planner -->
-  <node machine="c2" pkg="lightning" type="planner_stoppable_main" args="pfs_planner0 stop_pfs_planning" name="pfs_planner_node0" output="screen"> 
+  <node machine="c2" pkg="lightning" type="planner_stoppable" args="pfs_planner0 stop_pfs_planning" name="pfs_planner_node0" output="screen">
     <param name="default_planner_config" type="string" value="$(arg planner_type)"/>
+    <!--
     <rosparam command="load" file="$(find lightning)/config/$(arg arm_config)_arm_groups.yaml" />
     <rosparam command="load" file="$(find lightning)/config/ompl_planning.yaml" />
+    -->
   </node>
 
 </launch>

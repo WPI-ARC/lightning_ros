@@ -37,11 +37,12 @@ of its
 
 #include "lightning/collision_checker.h"
 
-CollisionChecker::CollisionChecker(double step_size)
-    // Progressively set up monitor, create a pointer to it, create a safer
-    // pointer using LockedScene (ls_).
-    : psm_(new planning_scene_monitor::PlanningSceneMonitor(
-          ps_, "robot_description")) {
+CollisionChecker::CollisionChecker(double step_size) {
+  // Progressively set up monitor, create a pointer to it, create a safer
+  // pointer using LockedScene (ls_).
+  psm_.reset(new planning_scene_monitor::PlanningSceneMonitor("/robot_description"));
+  ROS_INFO("Constructed psm_.");
+  ps_ = psm_->getPlanningScene();
   // Right now, all we really care about is whether there is collision or not;
   // nothing fancy, so defaults for everything not explicitly constructed should
   // be fine-ish.
@@ -50,8 +51,9 @@ CollisionChecker::CollisionChecker(double step_size)
 
   // TODO: allow overriding of default service and topic subscriptions for psm_.
   // Get initial planning scene state from /get_planning_scene service.
-  psm_->requestPlanningSceneState();
-  psm_->startSceneMonitor(); // Default "/planning_scene"
+  psm_->requestPlanningSceneState("/get_planning_scene");
+  ROS_INFO("Request from psm_.");
+  psm_->startSceneMonitor("/move_group/monitored_planning_scene"); // Default "/planning_scene"
 }
 
 CollisionChecker::~CollisionChecker() {}
