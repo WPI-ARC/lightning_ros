@@ -36,6 +36,16 @@ of its
 # POSSIBILITY OF SUCH DAMAGE.
 """
 
+"""
+This node is the top-level node for the lightning library. It advertises a
+service, "lightning_get_path", of type GetMotionPlan, and uses the RR and PFS
+nodes to retrieve plans. Whichever node (RR or PFS) completes first has its
+path returned while the other node is stopped.
+This node also performs some post-processing on the RR retrieved paths to
+smooth out the path. This post-processing is not strictly necessary; all it
+does is shortcut between random pairs of points.
+"""
+
 import roslib
 #roslib.load_manifest("lightning");
 import rospy
@@ -48,19 +58,26 @@ from moveit_msgs.srv import GetMotionPlan, GetMotionPlanResponse
 from tools.PathTools import ShortcutPathWrapper, DrawPointsWrapper
 from trajectory_msgs.msg import JointTrajectoryPoint
 
+# Node names for RR and PFS plan retrieval.
 RR_NODE_NAME = "rr_node"
 PFS_NODE_NAME = "pfs_node"
+# Topic names for stopping RR and PFS nodes.
 STOP_RR_NAME = "stop_all_rr"
 STOP_PFS_NAME = "stop_all_pfs"
+# Name to advertise service on. Service advertised from this file.
 LIGHTNING_SERVICE = "lightning_get_path"
-SET_PLANNING_SCENE_DIFF_NAME = "get_planning_scene";
+# Service for retrieving currnt PlanningScene from MoveIt.
+SET_PLANNING_SCENE_DIFF_NAME = "/get_planning_scene";
+# Service name for managing path library.
 MANAGE_LIBRARY = "manage_path_library"
 
 class Lightning:
     def __init__(self):
         rospy.wait_for_service(SET_PLANNING_SCENE_DIFF_NAME); #make sure the environment server is ready before starting up
+        # Initialize clients for planners.
         self.rr_client = actionlib.SimpleActionClient(RR_NODE_NAME, RRAction)
         self.pfs_client = actionlib.SimpleActionClient(PFS_NODE_NAME, PFSAction)
+        # Client for managing
         self.manage_library_client = rospy.ServiceProxy(MANAGE_LIBRARY, ManagePathLibrary)
         self.store_paths = rospy.get_param("~store_paths")
         self.use_rr = rospy.get_param("~use_RR")
@@ -84,6 +101,7 @@ class Lightning:
         if self.draw_points:
             self.draw_points_wrapper = DrawPointsWrapper()
 
+    # Called in a separate plan to stop the planning nodes in case of timeout.
     def _lightning_timeout(self, time):
         self.lightning_response_ready_event.wait(time)
         if self.lightning_response is None:
@@ -93,6 +111,7 @@ class Lightning:
             if self.use_pfs:
                 self._send_stop_pfs_planning()
 
+    # Main service routine advertised for the benefit of the user.
     def run(self, request):
         #make sure the request is valid
         start_and_goal = self._is_valid_motion_plan_request(request)
@@ -115,6 +134,7 @@ class Lightning:
         timer = threading.Thread(target=self._lightning_timeout, args=(request.motion_plan_request.allowed_planning_time,))
         timer.start()
 
+        # Send action requests to RR and PFS nodes.
         if self.use_rr:
             rr_client_goal = RRGoal()
             rr_client_goal.start = s
@@ -150,6 +170,9 @@ class Lightning:
     def _print_error(self, msg):
         rospy.logerr("***ERROR*** %s ***ERROR***" % (msg))
 
+    # Check to ensure that the request we received contains all of the
+    # components that we might need, namely that timeout, the constraints,
+    # and a start/goal state.
     def _is_valid_motion_plan_request(self, request):
         if request.motion_plan_request.allowed_planning_time <= 0:
             self._print_error("Lightning: requires allowed_planning_time to be greater than 0")
@@ -177,6 +200,8 @@ class Lightning:
             return None
         return s, g
 
+    # Called if RR finishes before PFS; stops the PFS and returns the retrieved
+    # path, so long as the planner succeeds.
     def _rr_done_cb(self, state, result):
         self.done_lock.acquire()
         self.rr_returned = True
@@ -194,10 +219,10 @@ class Lightning:
 
                 #display new path in rviz
                 if self.draw_points:
-                    self.draw_points_wrapper.draw_points(shortcut, self.current_group_name, "final", DrawPointsWrapper.ANGLES, DrawPointsWrapper.GREEN, 0.1)
+                    self.draw_points_wrapper.draw_points(rr_path, self.current_group_name, "final", DrawPointsWrapper.ANGLES, DrawPointsWrapper.GREEN, 0.1)
 
                 if self.store_paths:
-                    store_response = self._store_path(shortcut, rr_path)
+                    store_response = self._store_path(rr_path, rr_path)
                     self._special_print("Lightning: Got a path from RR, path stored = %s, number of library paths = %i" % (store_response))
                 else:
                     self._special_print("Lightning: Got a path from RR")
@@ -210,6 +235,8 @@ class Lightning:
                 self.lightning_response_ready_event.set()
         self.done_lock.release()
 
+    # Called if PFS finishes before RR; stops the RR and returns the retrieved
+    # path, so long as the planner succeeds.
     def _pfs_done_cb(self, state, result):
         self.done_lock.acquire()
         self.pfs_returned = True
@@ -218,19 +245,19 @@ class Lightning:
                 self._send_stop_rr_planning()
 
                 pfsPath = [p.values for p in result.path]
-                shortcut = self.shortcut_path_wrapper.shortcut_path(pfsPath, self.current_group_name)
+                #shortcut = self.shortcut_path_wrapper.shortcut_path(pfsPath, self.current_group_name)
 
-                self.lightning_response = self._create_get_motion_plan_response(shortcut)
+                self.lightning_response = self._create_get_motion_plan_response(pfsPath)#shortcut)
                 self.lightning_response_ready_event.set()
 
                 self.done_lock.release()
 
                 #display new path in rviz
                 if self.draw_points:
-                    self.draw_points_wrapper.draw_points(shortcut, self.current_group_name, "final", DrawPointsWrapper.ANGLES, DrawPointsWrapper.GREEN, 0.1)
+                    self.draw_points_wrapper.draw_points(pfsPath, self.current_group_name, "final", DrawPointsWrapper.ANGLES, DrawPointsWrapper.GREEN, 0.1)
 
                 if self.store_paths:
-                    store_response = self._store_path(shortcut, [])
+                    store_response = self._store_path(pfsPath, [])
                     self._special_print("Lightning: Got a path from PFS, path stored = %s, number of library paths = %i" % (store_response))
                 else:
                     self._special_print("Lightning: Got a path from PFS")
@@ -243,6 +270,8 @@ class Lightning:
                 self.lightning_response_ready_event.set()
         self.done_lock.release()
 
+    # Takes path returned from PFS/RR and puts it in appropriate form to
+    # send back to the user.
     def _create_get_motion_plan_response(self, path):
         response = GetMotionPlanResponse()
         response.motion_plan_response.error_code.val = response.motion_plan_response.error_code.SUCCESS
@@ -254,11 +283,13 @@ class Lightning:
         response.motion_plan_response.trajectory.joint_trajectory.joint_names = self.current_joint_names
         return response
 
+    # Calls PathTools library to store most recent path.
     def _store_path(self, final_path, retrieved_path):
         store_request = ManagePathLibraryRequest()
         store_request.joint_names = self.current_joint_names
         store_request.robot_name = self.robot_name
         store_request.action = store_request.ACTION_STORE
+        # convert into apporpriate request.
         for point in final_path:
             jtp = JointTrajectoryPoint()
             jtp.positions = point

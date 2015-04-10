@@ -53,7 +53,7 @@ CollisionChecker::CollisionChecker(double step_size) {
   // Get initial planning scene state from /get_planning_scene service.
   psm_->requestPlanningSceneState("/get_planning_scene");
   ROS_INFO("Request from psm_.");
-  psm_->startSceneMonitor("/move_group/monitored_planning_scene"); // Default "/planning_scene"
+  psm_->startSceneMonitor("/planning_scene");//move_group/monitored_planning_scene"); // Default "/planning_scene"
 }
 
 CollisionChecker::~CollisionChecker() {}
@@ -84,8 +84,12 @@ bool CollisionChecker::acquireScene(std::string group_name) {
                    ->getUpdatedLinkModelNames();
   joint_names_ = ps_->getCurrentState()
                      .getJointModelGroup(group_name)
-                     ->getJointModelNames();
+                     ->getActiveJointModelNames();
   num_joints_ = joint_names_.size();
+  ROS_INFO("Group: %s", group_name.c_str());
+  for (int i = 0; i < num_joints_; i++) {
+    ROS_INFO("Joint Name: %s", joint_names_[i].c_str());
+  }
   //collision_models_interface_->resetToStartState(
   //    *(collision_models_interface_->getPlanningSceneState()));
   return true;

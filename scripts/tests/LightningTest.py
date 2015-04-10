@@ -37,7 +37,6 @@ of its
 """
 
 import roslib
-roslib.load_manifest("lightning");
 import rospy
 
 from BoxAdder import BoxAdder
@@ -45,9 +44,10 @@ from tools.PathTools import InvalidSectionWrapper
 from pathlib.PathLibrary import PathLibrary
 from gazebo_msgs.srv import SetModelState, SetModelStateRequest, SetModelConfiguration, SetModelConfigurationRequest
 from moveit_msgs.srv import GetMotionPlan, GetMotionPlanRequest
-from moveit_msgs.msg import JointConstraint
+from moveit_msgs.msg import JointConstraint, RobotState, Constraints
 from pr2_mechanism_msgs.srv import SwitchController, SwitchControllerRequest
-from kinematics_msgs.srv import GetKinematicSolverInfo, GetKinematicSolverInfoRequest, GetConstraintAwarePositionIK, GetConstraintAwarePositionIKRequest
+from moveit_msgs.srv import GetPlanningSceneRequest, GetPlanningScene, GetPositionIKRequest, GetPositionIK, GetKinematicSolverInfo, GetKinematicSolverInfoRequest
+#from kinematics_msgs.srv import GetKinematicSolverInfo, GetKinematicSolverInfoRequest, GetConstraintAwarePositionIK, GetConstraintAwarePositionIKRequest
 
 from random import random
 import time
@@ -67,7 +67,7 @@ SWITCH_CONTROLLER = "/pr2_controller_manager/switch_controller"
 STEP_SIZE = 0.02
 
 SMALL_BOX_SIZE = 0.1
-TABLE_LEVEL = 0.7
+TABLE_LEVEL = 0.6
 
 class LightningTester:
 
@@ -78,8 +78,11 @@ class LightningTester:
     #if the tester is stopped while waiting for planning, then gazebo physics may need to be unpaused
     #to unpause physics, run "rosservice call /gazebo/unpause_physics" in the command line
     def _do_single_test(self, s, g, no_movement, group_name, joint_names, controller_name, planning_time):
+        rospy.loginfo("About to Pause Physics")
         subprocess.check_call("rosservice call /gazebo/pause_physics", shell=True)
+        rospy.loginfo("Paused Physics")
         request = self._create_get_motion_plan_request(s, g, group_name, joint_names, planning_time)
+        rospy.loginfo("Created Plan Request")
         rospy.wait_for_service(LIGHTNING_NAME)
         try:
             response = self.lightning_client(request)
@@ -88,7 +91,7 @@ class LightningTester:
             subprocess.check_call("rosservice call /gazebo/unpause_physics", shell=True)
             return False
         subprocess.check_call("rosservice call /gazebo/unpause_physics", shell=True)
-        path = [pt.positions for pt in response.trajectory.joint_trajectory.points]
+        path = [pt.positions for pt in response.motion_plan_response.trajectory.joint_trajectory.points]
         if len(path) == 0:
             rospy.loginfo("Lightning tester: lightning did not return a path")
             return False
@@ -105,14 +108,15 @@ class LightningTester:
         req.motion_plan_request.start_state.joint_state.name = joint_names
         req.motion_plan_request.start_state.joint_state.position = start_point
 
-        req.motion_plan_request.goal_constraints.joint_constraints = []
+        req.motion_plan_request.goal_constraints.append(Constraints())
+        req.motion_plan_request.goal_constraints[0].joint_constraints = []
         for i in xrange(len(joint_names)):
             tempConstraint = JointConstraint()
             tempConstraint.joint_name = joint_names[i]
             tempConstraint.position = goal_point[i]
-            req.motion_plan_request.goal_constraints.joint_constraints.append(tempConstraint)
+            req.motion_plan_request.goal_constraints[0].joint_constraints.append(tempConstraint)
 
-        req.motion_plan_request.allowed_planning_time = rospy.Duration(planning_time)
+        req.motion_plan_request.allowed_planning_time = planning_time
         return req
 
     #make sure the joint controller is turned off before calling this
@@ -140,16 +144,20 @@ class LightningTester:
 
     def _do_ik(self, px, py, pz, arm):
         IK_INFO_NAME = "/pr2_%s_kinematics/get_ik_solver_info" % (arm)
-        IK_NAME = "/pr2_%s_kinematics/get_constraint_aware_ik" % (arm)
+        IK_NAME = "/compute_ik"
 
         ik_solver_info_service_proxy = rospy.ServiceProxy(IK_INFO_NAME, GetKinematicSolverInfo)
         ik_info_req = GetKinematicSolverInfoRequest()
+        rospy.loginfo("LightningTest: do_ik: Waiting for %s" % (IK_INFO_NAME))
         rospy.wait_for_service(IK_INFO_NAME)
+        rospy.loginfo("About to get IK info.")
         ik_info_res = ik_solver_info_service_proxy(ik_info_req)
+        rospy.loginfo("Got IK Solver info.")
 
-        ik_solver_service_proxy = rospy.ServiceProxy(IK_NAME, GetConstraintAwarePositionIK)
-        ik_solve_req = GetConstraintAwarePositionIKRequest()
-        ik_solve_req.timeout = rospy.Duration(5.0)
+        ik_solver_service_proxy = rospy.ServiceProxy(IK_NAME, GetPositionIK)
+        ik_solve_req = GetPositionIKRequest()
+        ik_solve_req.ik_request.group_name = arm
+        ik_solve_req.ik_request.timeout = rospy.Duration(5.0)
         ik_solve_req.ik_request.ik_link_name = "%s_wrist_roll_link" % (arm[0])
         ik_solve_req.ik_request.pose_stamped.header.frame_id = "odom_combined"
         ik_solve_req.ik_request.pose_stamped.pose.position.x = px
@@ -159,14 +167,23 @@ class LightningTester:
         ik_solve_req.ik_request.pose_stamped.pose.orientation.y = 0.0;
         ik_solve_req.ik_request.pose_stamped.pose.orientation.z = 0.0;
         ik_solve_req.ik_request.pose_stamped.pose.orientation.w = 1.0;
-        ik_solve_req.ik_request.ik_seed_state.joint_state.name = ik_info_res.kinematic_solver_info.joint_names;
+        # TODO: Consider retrieving current robto state.
+        ik_solve_req.ik_request.robot_state.joint_state.name = ik_info_res.kinematic_solver_info.joint_names;
         for i in xrange(len(ik_info_res.kinematic_solver_info.joint_names)):
-            ik_solve_req.ik_request.ik_seed_state.joint_state.position.append((ik_info_res.kinematic_solver_info.limits[i].min_position + ik_info_res.kinematic_solver_info.limits[i].max_position)/2.0)
+            joint_limits = ik_info_res.kinematic_solver_info.limits[i]
+            ik_solve_req.ik_request.robot_state.joint_state.position.append((joint_limits.min_position + joint_limits.max_position)/2.0)
+            joint_constraint = JointConstraint()
+            joint_constraint.joint_name = ik_info_res.kinematic_solver_info.joint_names[i]
+            joint_constraint.position = (joint_limits.max_position + joint_limits.min_position) / 2.0
+            joint_constraint.tolerance_above = (joint_limits.max_position - joint_limits.min_position) / 2.0
+            joint_constraint.tolerance_below = joint_constraint.tolerance_above
+            ik_solve_req.ik_request.constraints.joint_constraints.append(joint_constraint)
 
+        rospy.loginfo("LightningTest: do_ik: Waiting for IK service.")
         rospy.wait_for_service(IK_NAME)
         ik_solve_res = ik_solver_service_proxy(ik_solve_req)
         if ik_solve_res.error_code.val == ik_solve_res.error_code.SUCCESS:
-            return ik_solve_res.solution.joint_state.position
+            return ik_solve_res.solution.joint_state.position[30:37]
         else:
             rospy.loginfo("Lightning tester: cannot move to sampled position...trying another position")
             return []
@@ -176,8 +193,9 @@ class LightningTester:
         return 0
 
     def _sample_table_scene(self, n, group_name):
+        rospy.loginfo("Lightning test: sample table scene: Started")
         if group_name == "right_arm":
-            x_range, y_range, z = (0.4, 0.8), (-0.8, 0.2), TABLE_LEVEL
+            x_range, y_range, z = (0.6, 1.0), (-0.8, 0.2), TABLE_LEVEL
         elif group_name == "left_arm":
             x_range, y_range, z = (0.4, 0.8), (-0.2, 0.8), TABLE_LEVEL
         else:
@@ -242,23 +260,26 @@ class LightningTester:
             rospy.sleep(0.005)
 
     def _sample_box_goal(self, arm, y_offset=0):
+        rospy.loginfo("LightningTest: sample_box_goal: Starting.")
         if arm == "right_arm":
-            x_range, y_range, z_range = (0.55, 0.7), (-0.2, 0.2), (0.8, 1.1)
+            x_range, y_range, z_range = (0.60, 0.7), (-0.2, 0.2), (0.8, 1.1)
         elif arm == "left_arm":
             x_range, y_range, z_range = (0.55, 0.7), (-0.2, 0.2), (0.8, 1.1)
         else:
             rospy.loginfo("Lightning test: sample box goal: invalid group name: %s" % (group_name))
             return []
+        rospy.loginfo("LightningTest: sample_box_goal: About to compute rand.")
         rand_x = x_range[0]+(x_range[1]-x_range[0])*random()
         rand_y = y_offset+y_range[0]+(y_range[1]-y_range[0])*random()
         rand_z = z_range[0]+(z_range[1]-z_range[0])*random()
+        rospy.loginfo("LightningTest: sample_box_goal: About to do IK.")
         return list(self._do_ik(rand_x, rand_y, rand_z, arm))
 
     def _sample_table_goal(self, arm, y_offset=0):
         if arm == "right_arm":
-            x_range, y_range, z = (0.4, 0.8), (-0.6, -0.1), TABLE_LEVEL+0.02
+            x_range, y_range, z = (0.6, 1.0), (-0.6, -0.1), TABLE_LEVEL+0.02
         elif arm == "left_arm":
-            x_range, y_range, z = (0.4, 0.8), (0.1, 0.6), TABLE_LEVEL+0.02
+            x_range, y_range, z = (0.6, 1.0), (0.1, 0.6), TABLE_LEVEL+0.02
         else:
             rospy.loginfo("Lightning test: sample table goal: invalid group name: %s" % (group_name))
             return []
@@ -278,8 +299,11 @@ class LightningTester:
             counter = 0
             if not no_movement:
                 self.move_to_joint_configs(controller_name, s)
+            rospy.loginfo("About to call sample_box_func")
             y_offset = sample_box_func()
+            rospy.loginfo("Called sample_box_func")
             goal = sample_goal_func(group_name, y_offset)
+            rospy.loginfo("Called sample_goal_func")
             while len(goal) == 0 and counter < max_counter:
                 goal = sample_goal_func(group_name, y_offset)
                 counter += 1
@@ -287,7 +311,7 @@ class LightningTester:
                 rospy.loginfo("Lightning tester: goal = %s" % (str(goal)))
                 found_path = self._do_single_test(s, goal, no_movement, group_name, joint_names, controller_name, planning_time)
                 if found_path:
-                    i += 1
+                  i += 1
                 rospy.loginfo("Lightning tester: waiting...")
                 time.sleep(waiting_time)
                 rospy.loginfo("Lightning tester: done waiting")
@@ -302,9 +326,12 @@ class LightningTester:
 if __name__ == "__main__":
     try:
         rospy.init_node("run_test")
+        rospy.sleep(10.0)
         rospy.loginfo("Lightning test: starting")
         tester = LightningTester()
+        rospy.loginfo("Lightning test: waiting for lightning")
         tester.wait_for_lightning()
+        rospy.loginfo("Lightning test: done waiting for lightning")
 
         right_start = [-1.5777, 1.2081, -0.0126, -1.2829, -1.5667, -1.5655, 1.64557]
         tester.switch_off_controller(RIGHT_ARM_JOINT_CONTROLLER)
@@ -315,7 +342,7 @@ if __name__ == "__main__":
         tester.move_to_joint_configs(LEFT_ARM_JOINT_CONTROLLER, left_start)
 
         if len(sys.argv) >= 4 and sys.argv[1].find("table") == 0 and sys.argv[2] == "right":
-            tester.run_iterations_table(right_start, int(sys.argv[3]), False, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planning_time=20.0, waiting_time=1.0)
+            tester.run_iterations_table(right_start, int(sys.argv[3]), False, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planning_time=40.0, waiting_time=1.0)
         elif len(sys.argv) >= 4 and sys.argv[1].find("box") == 0 and sys.argv[2] == "right":
             tester.run_iterations_box(right_start, int(sys.argv[3]), False, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planning_time=20.0, waiting_time=1.0)
         elif len(sys.argv) >= 4 and sys.argv[1].find("table") == 0 and sys.argv[2] == "left":

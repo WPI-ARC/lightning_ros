@@ -17,7 +17,7 @@ berenson@eecs.berkeley.edu)
 #    copyright notice, this list of conditions and the following
 #    disclaimer in the documentation and/or other materials provided
 #    with the distribution.
-#  * Neither the name of University of California, Berkeley nor the names 
+#  * Neither the name of University of California, Berkeley nor the names
 of its
 #    contributors may be used to endorse or promote products derived
 #    from this software without specific prior written permission.
@@ -37,23 +37,24 @@ of its
 """
 
 import roslib
-roslib.load_manifest("lightning")
 import rospy
 
 from visualization_msgs.msg import Marker, MarkerArray
 from lightning.msg import Status
 from lightning.msg import DrawPoints
-from kinematics_msgs.srv import GetKinematicSolverInfo, GetKinematicSolverInfoRequest, GetPositionFK, GetPositionFKRequest
+from moveit_msgs.msg import RobotState
+from moveit_msgs.srv import GetPlanningSceneRequest, GetPlanningScene, GetPositionFKRequest, GetPositionFK, GetKinematicSolverInfo, GetKinematicSolverInfoRequest
+#from kinematics_msgs.srv import GetKinematicSolverInfo, GetKinematicSolverInfoRequest, GetPositionFK, GetPositionFKRequest
 from geometry_msgs.msg import Point
 
 DRAW_POINTS = "draw_points"
-MARKER_SUBSCRIBER_NAME = "/visualization_marker_array"
+MARKER_SUBSCRIBER_NAME = "visualization_marker"
 
 class PointDrawer:
     def __init__(self):
         self.current_points = dict()
         self.draw_subscriber = rospy.Subscriber(DRAW_POINTS, DrawPoints, self._do_draw_action)
-        self.marker_publisher = rospy.Publisher(MARKER_SUBSCRIBER_NAME, MarkerArray)
+        self.marker_publisher = rospy.Publisher(MARKER_SUBSCRIBER_NAME, MarkerArray, queue_size=10)
 
     def _do_draw_action(self, msg):
         points = []
@@ -91,9 +92,9 @@ class PointDrawer:
                     else:
                         rospy.loginfo("Point drawer: point type not set")
                         return
-                    
+
                     self.current_points[msg.point_group_name] = len(points)
-                    
+
                     if len(msg.edges) > 0:
                         edges = [endpoint_list.values for endpoint_list in msg.edges]
                         self.current_points[msg.point_group_name] += 1
@@ -102,7 +103,7 @@ class PointDrawer:
             else:
                 rospy.loginfo("Point drawer: got invalid group name: %s" % (msg.model_group_name))
         elif msg.action == msg.ACTION_CLEAR:
-            self._clear_points() 
+            self._clear_points()
         else:
             rospy.loginfo("Point drawer: action not set")
             return
@@ -152,7 +153,7 @@ class PointDrawer:
 
         marker.lifetime = rospy.Duration()
         return marker
-    
+
     def _create_add_line(self, points, edges, point_group_name, id, red, green, blue):
         all_points = []
         for i, end_points in enumerate(edges):
@@ -162,7 +163,7 @@ class PointDrawer:
                 all_points.append(pt1)
                 pt2.x, pt2.y, pt2.z = points[endpoint_index][0], points[endpoint_index][1], points[endpoint_index][2]
                 all_points.append(pt2)
-    
+
         marker = Marker()
         marker.header.frame_id = "odom_combined"
         marker.header.stamp = rospy.get_rostime()
@@ -180,7 +181,7 @@ class PointDrawer:
         marker.pose.orientation.z = 0.0
         marker.pose.orientation.w = 1.0
         marker.scale.x = 0.003
-        
+
         marker.color.r = red
         marker.color.g = green
         marker.color.b = blue
@@ -201,20 +202,21 @@ class PointDrawer:
     def _get_coordinates(self, point, arm):
         if arm not in ["right_arm", "left_arm"]: #can only draw points for pr2 arms
             return None
+        FK_NAME = "/compute_fk"
         FK_INFO_NAME = "/pr2_%s_kinematics/get_fk_solver_info" % (arm)
-        FK_NAME = "/pr2_%s_kinematics/get_fk" % (arm)
 
         info_client = rospy.ServiceProxy(FK_INFO_NAME, GetKinematicSolverInfo)
         info_request = GetKinematicSolverInfoRequest()
         rospy.wait_for_service(FK_INFO_NAME)
         info_response = info_client(info_request)
-        
+
         fk_client = rospy.ServiceProxy(FK_NAME, GetPositionFK)
         fk_request = GetPositionFKRequest()
         fk_request.header.frame_id = "odom_combined"
         fk_request.fk_link_names.append("%s_wrist_roll_link" % (arm[0]))
 
         fk_request.robot_state.joint_state.name = info_response.kinematic_solver_info.joint_names
+#fk_request.robot_state = self._get_robot_state()
         fk_request.robot_state.joint_state.position = []
         for i in xrange(len(info_response.kinematic_solver_info.joint_names)):
             fk_request.robot_state.joint_state.position.append(point[i])
@@ -226,6 +228,15 @@ class PointDrawer:
         else:
             rospy.loginfo("Forward kinematics service call failed")
             return None
+
+    def _get_robot_state(self):
+      GET_PLANNING_SCENE_NAME = "/get_planning_scene"
+      rospy.wait_for_service(GET_PLANNING_SCENE_NAME)
+      robot_state_client = rospy.ServiceProxy(GET_PLANNING_SCENE_NAME, GetPlanningScene)
+      robot_state_req = GetPlanningSceneRequest()
+      robot_state_req.components.components = robot_state_req.components.ROBOT_STATE
+      robot_state = robot_state_client(robot_state_req).scene.robot_state
+      return robot_state
 
 if __name__ == "__main__":
     try:

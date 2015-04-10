@@ -52,7 +52,7 @@ class CollisionCheckService {
   CollisionCheckService() : private_handle_("~") {
     handle_.getParam("step_size", step_size_);
     private_handle_.getParam("num_threads", num_threads_);
-    ros::service::waitForService("get_planning_scene");
+    ros::service::waitForService("/get_planning_scene");
     ROS_INFO("About to construct Collision Checker.");
     collision_checker_ = new CollisionChecker(step_size_);
     ROS_INFO("Constructed Collision Checker.");

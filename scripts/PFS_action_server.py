@@ -50,7 +50,7 @@ from tools.PathTools import PlanTrajectoryWrapper
 PFS_NODE_NAME = "pfs_node";
 STOP_PLANNER_NAME = "stop_pfs_planning";
 STOP_PFS_NAME = "stop_all_pfs";
-SET_PLANNING_SCENE_DIFF_NAME = "get_planning_scene";
+SET_PLANNING_SCENE_DIFF_NAME = "/get_planning_scene";
 
 class PFSNode:
     def __init__(self):

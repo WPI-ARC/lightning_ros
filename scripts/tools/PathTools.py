@@ -111,6 +111,8 @@ class PlanTrajectoryWrapper:
             temp_constraint = JointConstraint()
             temp_constraint.joint_name = joint_names[i]
             temp_constraint.position = goal_point[i]
+            temp_constraint.tolerance_above = 0.05;
+            temp_constraint.tolerance_below = 0.05;
             req.motion_plan_request.goal_constraints[0].joint_constraints.append(temp_constraint)
 
         #call the planner
@@ -176,7 +178,7 @@ class DrawPointsWrapper:
     POSES = "poses"
 
     def __init__(self):
-        self.display_points_publisher = rospy.Publisher(DISPLAY_POINTS, DrawPoints)
+        self.display_points_publisher = rospy.Publisher(DISPLAY_POINTS, DrawPoints, queue_size=10)
 
     def draw_points(self, path, model_group_name, point_group_name, point_type, rgb, display_density, point_radius=0.03):
         draw_message = DrawPoints()

@@ -5,11 +5,14 @@
     <!-- this value must be 'right' or 'left' to specify which arm to use for testing -->
     <arg name="arm_to_use" value="right" />
     <!-- number of iterations to use for the test -->
-    <arg name="num_test_iterations" value="5" />
+    <arg name="num_test_iterations" value="20" />
 
     <!-- launches gazebo and rviz -->
     <include file="$(find lightning)/launch/rviz_display.launch">
     </include>
+
+    <include file="$(find pr2_arm_kinematics)/launch/pr2_ik_larm_node.launch" />
+    <include file="$(find pr2_arm_kinematics)/launch/pr2_ik_rarm_node.launch" />
 
     <!-- launches lightning -->
     <include file="$(find lightning)/launch/lightning.launch">

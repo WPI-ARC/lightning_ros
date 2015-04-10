@@ -36,6 +36,16 @@ of its
 # POSSIBILITY OF SUCH DAMAGE.
 """
 
+"""
+This node advertises an action which is used by the main lightning node
+(see run_lightning.py) to run the Retrieve and Repair portion of LightningROS.
+This node relies on a planner_stoppable type node to repair the paths, the
+PathTools library to retrieve paths from the library (this is not a separate
+node; just a python library that it calls), and the PathTools python library
+which calls the collision_checker service and advertises a topic for displaying
+stuff in RViz.
+"""
+
 import roslib
 import rospy
 import actionlib
@@ -50,9 +60,13 @@ from lightning.srv import ManagePathLibrary, ManagePathLibraryResponse
 import sys
 import pickle
 
+# Name of this node.
 RR_NODE_NAME = "rr_node"
+# Name to use for stopping the repair planner. Published from this node.
 STOP_PLANNER_NAME = "stop_rr_planning"
+# Topic to subscribe to for stopping the whole node in the middle of processing.
 STOP_RR_NAME = "stop_all_rr"
+# Name of library managing service run from this node.
 MANAGE_LIBRARY = "manage_path_library"
 STATE_RETRIEVE, STATE_REPAIR, STATE_RETURN_PATH, STATE_FINISHED, STATE_FINISHED = (0, 1, 2, 3, 4)
 

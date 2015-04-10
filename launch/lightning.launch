@@ -2,8 +2,8 @@
     <!-- all lightning default parameters are set here -->
     <group ns="lightning">
         <param name="robot_name" value="pr2" />
-        <param name="step_size" value="0.02" />
-        <param name="draw_points" value="false" />
+        <param name="step_size" value="0.005" />
+        <param name="draw_points" value="true" />
         <remap from="register_planning_scene" to="/register_planning_scene" />
 
         <!-- returns invalid sections of paths -->
@@ -12,7 +12,7 @@
         </node>
 
         <node name="path_shortcutter_service" pkg="lightning" type="path_shortcutter" output="screen">
-            <param name="num_iterations" value="200" />
+            <param name="num_iterations" value="100" />
             <param name="ignore_fraction" value="0.1" />
         </node>
 
