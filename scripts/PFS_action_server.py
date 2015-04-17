@@ -36,6 +36,14 @@ of its
 # POSSIBILITY OF SUCH DAMAGE.
 """
 
+"""
+This node advertises an action which is used by the main lightning node
+(see run_lightning.py) to run the standard planning algorithm (exactly which
+planner is run is specified in planners.launch). This is essentially a thin
+wrapper over the planner_stoppable type node, which is itself a thin wrapper
+over OMPL.
+"""
+
 import roslib
 #roslib.load_manifest("lightning")
 import rospy
@@ -46,6 +54,7 @@ from lightning.msg import PFSAction, PFSResult
 from lightning.msg import StopPlanning, Float64Array
 
 from tools.PathTools import PlanTrajectoryWrapper
+
 
 PFS_NODE_NAME = "pfs_node";
 STOP_PLANNER_NAME = "stop_pfs_planning";

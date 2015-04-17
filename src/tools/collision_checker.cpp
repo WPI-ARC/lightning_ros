@@ -78,6 +78,7 @@ bool CollisionChecker::acquireScene(std::string group_name) {
   //  collision_models_interface_->bodiesUnlock();
   //  return false;
   //}
+  group_name_ = group_name;
   psm_->lockSceneRead();
   arm_names_ = ps_->getCurrentState()
                    .getJointModelGroup(group_name)
@@ -127,8 +128,10 @@ bool CollisionChecker::isStateValid(const ::std::vector<double> &state) {
   std::map<std::string, double> pos;
   for (int i = 0; i < num_joints_; i++) {
     pos[joint_names_[i]] = state[i];
+    ROS_INFO("Setting %s to %f", joint_names_[i].c_str(), state[i]);
   }
   robot_state.setVariablePositions(pos);
+  ps_->setCurrentState(robot_state);
   // Not sure if this actually checks for joint limits correctly.
-  return ps_->isStateValid(robot_state);
+  return ps_->isStateValid(robot_state, group_name_, true);
 }

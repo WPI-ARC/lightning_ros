@@ -85,6 +85,7 @@ class CollisionChecker {
 
   std::vector<std::string> arm_names_;
   std::vector<std::string> joint_names_;
+  std::string group_name_;
   int num_joints_;
   double step_size_;
 };

@@ -178,6 +178,8 @@ class CollisionCheckService {
         } else {
           if (j == paths[i].size() - 1) {
             ROS_INFO("Collision check service: goal state is invalid");
+          } else {
+            ROS_INFO("State %d invalid.", j);
           }
           if (!tracking_invalid) {
             start_invalid = j - 1;

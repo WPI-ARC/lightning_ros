@@ -36,21 +36,15 @@
     -->
   </node>
 
-  <!--
+    <!--
   <node machine="c2" pkg="lightning" type="planner_stoppable" args="rr_planner1 stop_rr_planning" name="rr_planner_node1" output="screen">
     <param name="default_planner_config" type="string" value="$(arg planner_type)"/>
-    <rosparam command="load" file="$(find lightning)/config/$(arg arm_config)_arm_groups.yaml" />
-    <rosparam command="load" file="$(find lightning)/config/ompl_planning.yaml" />
   </node>
-  -->
+    -->
 
   <!-- should only need one pfs planner -->
   <node machine="c2" pkg="lightning" type="planner_stoppable" args="pfs_planner0 stop_pfs_planning" name="pfs_planner_node0" output="screen">
     <param name="default_planner_config" type="string" value="$(arg planner_type)"/>
-    <!--
-    <rosparam command="load" file="$(find lightning)/config/$(arg arm_config)_arm_groups.yaml" />
-    <rosparam command="load" file="$(find lightning)/config/ompl_planning.yaml" />
-    -->
   </node>
 
 </launch>

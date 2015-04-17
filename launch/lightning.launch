@@ -8,7 +8,7 @@
 
         <!-- returns invalid sections of paths -->
         <node name="collision_check_service" pkg="lightning" type="collision_check_service" output="screen">
-            <param name="num_threads" value="4" />
+            <param name="num_threads" value="1" />
         </node>
 
         <node name="path_shortcutter_service" pkg="lightning" type="path_shortcutter" output="screen">
@@ -24,7 +24,7 @@
             <param name="num_rr_planners" value="1" />
             <param name="path_library_path_node_size" value="8" />
             <param name="path_library_sg_node_size" value="50" />
-            <param name="num_paths_to_collision_check" value="4" />
+            <param name="num_paths_to_collision_check" value="1" />
             <param name="dtw_distance" value="5.0" />
             <param name="path_library_dir" value="$(find lightning)/scripts/pathlib/paths" />
         </node>
@@ -37,7 +37,7 @@
         <node name="lightning" pkg="lightning" type="run_lightning.py" output="screen">
             <param name="store_paths" value="true" />
             <param name="use_RR" value="true" />
-            <param name="use_PFS" value="true" />
+            <param name="use_PFS" value="false" />
         </node>
     </group>
 </launch>

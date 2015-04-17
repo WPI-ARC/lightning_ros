@@ -150,6 +150,7 @@ class RRNode:
     def _retrieve_repair(self, action_goal):
         self.working_lock.acquire()
         self._set_stop_value(False)
+        self.draw_points = False
         if self.draw_points:
             self.draw_points_wrapper.clear_points()
         rospy.loginfo("RR action server: RR got an action goal")
