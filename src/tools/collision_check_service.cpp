@@ -56,6 +56,7 @@ class CollisionCheckService {
   CollisionCheckService() : private_handle_("~") {
     // Retrieve parameter information from ROS parameter server.
     handle_.getParam("step_size", step_size_);
+    handle_.getParam("increment", increment_);
     private_handle_.getParam("num_threads", num_threads_);
 
     // Wait for the get_planning_scene service to be advertised so that the
@@ -82,6 +83,7 @@ class CollisionCheckService {
   // of the colliding portions of each path.
   bool getAllInvalidSections(lightning::CollisionCheck::Request &req,
                              lightning::CollisionCheck::Response &res) {
+    ros::WallTime start_time = ros::WallTime::now();
     res.status.status = lightning::Status::FAILURE;
     ROS_INFO("Collision check service: received a set of %u paths",
              (unsigned int)req.paths.size());
@@ -156,6 +158,7 @@ class CollisionCheckService {
       collision_checker_->releaseScene();
       res.status.status = lightning::Status::SUCCESS;
     }
+    ROS_INFO("The CollisionCheckService took %f seconds to run.", (ros::WallTime::now() - start_time).toSec());
     return true;
   }
 
@@ -173,6 +176,17 @@ class CollisionCheckService {
   // Step size to pass to collision_checker. Not actually used by
   // collision_checker_ in the methods which are called here.
   double step_size_;
+
+  // How far to increment along the path when checking points to collision
+  // check. A value of 1 means that each point is checked, 2 means every other
+  // point is checked, 3 means every third, etc. A larger increment means that
+  // this is more likely to miss a collision, but that it is going to run
+  // faster.
+  // When the path is being collision checked and a the start or end of a
+  // colliding interval is encountered, then the checker will check all the
+  // points in the vicinity to determine the exact start and end points of the
+  // invalid regions.
+  int increment_;
 
   // Maximum number of collision checking threads to run at a time.
   int num_threads_;
@@ -215,14 +229,23 @@ class CollisionCheckService {
       start_invalid = -1;
       tracking_invalid = false;
       // Iterate through each point in the path.
-      for (unsigned int j = 0; j < paths[i].size(); j++) {
-        if (collision_checker_->isStateValid(paths[i][j], !first /*Thread safety*/)) {
+      for (unsigned int j = 0; j < paths[i].size(); j += increment_) {
+        if (collision_checker_->isStateValid(paths[i][j],
+                                             !first /*Thread safety*/)) {
           // Checks for if we are at the end of an invalid section.
           if (tracking_invalid) {
             current_invalid_section[0] = start_invalid;
             current_invalid_section[1] = j;
             invalid_sections_for_path.push_back(current_invalid_section);
             tracking_invalid = false;
+            if (increment_ > 1 && j > 0) {
+              for (int k = 1; k < increment_; k++) {
+                if (collision_checker_->isStateValid(paths[i][j - k], !first)) {
+                  current_invalid_section[1] -= 1;
+                }
+                else break;
+              }
+            }
           }
         } else {
           // Debugging info.
@@ -236,6 +259,16 @@ class CollisionCheckService {
           if (!tracking_invalid) {
             start_invalid = j - 1;
             tracking_invalid = true;
+            // Check the state before this one to see if it is in collision.
+            // This is necessary due to the nature of the incrementing.
+            if (increment_ > 1 && j > 0) {
+              for (int k = 1; k < increment_; k++) {
+                if (!collision_checker_->isStateValid(paths[i][j - k], !first)) {
+                  start_invalid -= 1;
+                }
+                else break;
+              }
+            }
           }
         }
       }

@@ -3,6 +3,7 @@
     <group ns="lightning">
         <param name="robot_name" value="pr2" />
         <param name="step_size" value="0.05" />
+        <param name="increment" value="1" />
         <param name="draw_points" value="true" />
         <param name="publish_stats" value="true" />
         <remap from="register_planning_scene" to="/register_planning_scene" />
