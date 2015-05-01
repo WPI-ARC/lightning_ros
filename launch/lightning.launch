@@ -2,19 +2,19 @@
     <!-- all lightning default parameters are set here -->
     <group ns="lightning">
         <param name="robot_name" value="pr2" />
-        <param name="step_size" value="0.05" />
+        <param name="step_size" value="0.02" />
         <param name="increment" value="1" />
-        <param name="draw_points" value="true" />
-        <param name="publish_stats" value="true" />
+        <param name="draw_points" value="false" />
+        <param name="publish_stats" value="false" />
         <remap from="register_planning_scene" to="/register_planning_scene" />
 
         <!-- returns invalid sections of paths -->
         <node name="collision_check_service" pkg="lightning" type="collision_check_service" output="screen">
-            <param name="num_threads" value="1" />
+            <param name="num_threads" value="4" />
         </node>
 
         <node name="path_shortcutter_service" pkg="lightning" type="path_shortcutter" output="screen">
-            <param name="num_iterations" value="20" />
+            <param name="num_iterations" value="200" />
             <param name="ignore_fraction" value="0.1" />
         </node>
 
@@ -23,10 +23,10 @@
 
         <!-- handles requests for RR planning -->
         <node name="rr_node" pkg="lightning" type="RR_action_server.py" output="screen">
-            <param name="num_rr_planners" value="1" />
+            <param name="num_rr_planners" value="2" />
             <param name="path_library_path_node_size" value="8" />
             <param name="path_library_sg_node_size" value="50" />
-            <param name="num_paths_to_collision_check" value="1" />
+            <param name="num_paths_to_collision_check" value="4" />
             <param name="dtw_distance" value="5.0" />
             <param name="path_library_dir" value="$(find lightning)/scripts/pathlib/paths" />
         </node>
