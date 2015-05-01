@@ -54,11 +54,12 @@ import threading
 from tools.PathTools import PlanTrajectoryWrapper, InvalidSectionWrapper, DrawPointsWrapper
 from pathlib.PathLibrary import *
 from lightning.msg import Float64Array, RRAction, RRResult
-from lightning.msg import StopPlanning
+from lightning.msg import StopPlanning, RRStats
 from lightning.srv import ManagePathLibrary, ManagePathLibraryResponse
 
 import sys
 import pickle
+import time
 
 # Name of this node.
 RR_NODE_NAME = "rr_node"
@@ -72,6 +73,7 @@ STATE_RETRIEVE, STATE_REPAIR, STATE_RETURN_PATH, STATE_FINISHED, STATE_FINISHED 
 
 class RRNode:
     def __init__(self):
+        # Retrieve ROS parameters and configuration and cosntruct various objects.
         self.robot_name = rospy.get_param("robot_name")
         self.planner_config_name = rospy.get_param("planner_config_name")
         self.current_joint_names = []
@@ -87,6 +89,7 @@ class RRNode:
         self.stop_rr_subscriber = rospy.Subscriber(STOP_RR_NAME, StopPlanning, self._stop_rr_planner)
         self.stop_rr_planner_publisher = rospy.Publisher(STOP_PLANNER_NAME, StopPlanning, queue_size=10)
         self.manage_library_service = rospy.Service(MANAGE_LIBRARY, ManagePathLibrary, self._do_manage_action)
+        self.stats_pub = rospy.Publisher("rr_stats", RRStats, queue_size=10)
         self.repaired_sections_lock = threading.Lock()
         self.repaired_sections = []
         self.working_lock = threading.Lock() #to ensure that node is not doing RR and doing a library management action at the same time
@@ -97,11 +100,33 @@ class RRNode:
             self.draw_points_wrapper = DrawPointsWrapper()
 
     def _set_repaired_section(self, index, section):
+        """
+          After you have done the path planning to repair a section, store
+            the repaired path section.
+
+          Args:
+            index (int): the index corresponding to the section being repaired.
+            section (path, list of list of float): A path to store.
+        """
         self.repaired_sections_lock.acquire()
         self.repaired_sections[index] = section
         self.repaired_sections_lock.release()
 
     def _call_planner(self, start, goal, planning_time):
+        """
+          Calls a standard planner to plan between two points with an allowed
+            planning time.
+
+          Args:
+            start (list of float): A joint configuration corresponding to the
+              start position of the path.
+            goal (list of float): The jount configuration corresponding to the
+              goal position for the path.
+
+          Returns:
+            path: A list of joint configurations corresponding to the planned
+              path.
+        """
         ret = None
         planner_number = self.plan_trajectory_wrapper.acquire_planner()
         if not self._need_to_stop():
@@ -110,6 +135,26 @@ class RRNode:
         return ret
 
     def _repair_thread(self, index, start, goal, start_index, goal_index, planning_time):
+        """
+          Handles repairing a portion of the path.
+          All that this function really does is to plan from scratch between
+            the start and goal configurations and then store the planned path
+            in the appropriate places and draws either the repaired path or, if
+            the repair fails, the start and goal.
+
+          Args:
+            index (int): The index to pass to _set_repaired_section(),
+              corresponding to which of the invalid sections of the path we are
+              repairing.
+            start (list of float): The start joint configuration to use.
+            goal (list of float): The goal joint configuration to use.
+            start_index (int): The index in the overall path corresponding to
+              start. Only used for debugging info.
+            goal_index (int): The index in the overall path corresponding to
+              goal. Only used for debugging info.
+            planning_time (float): Maximum allowed time to spend planning, in
+              seconds.
+        """
         repaired_path = self._call_planner(start, goal, planning_time)
         if self.draw_points:
             if repaired_path is not None and len(repaired_path) > 0:
@@ -136,7 +181,24 @@ class RRNode:
         self.stop_lock.release();
 
     def do_retrieved_path_drawing(self, projected, retrieved, invalid):
-        #display points in rviz
+        """
+          Draws the points from the various paths involved in the planning
+            in different colors in different namespaces.
+          All of the arguments are lists of joint configurations, where each
+            joint configuration is a list of joint angles.
+          The only distinction between the different arguments being passed in
+            are which color the points in question are being drawn in.
+          Uses the DrawPointsWrapper to draw the points.
+
+          Args:
+            projected (list of list of float): List of points to draw as
+              projected between the library path and the actual start/goal
+              position. Will be drawn in blue.
+            retrieved (list of list of float): The path retrieved straight
+              from the path library. Will be drawn in white.
+            invalid (list of list of float): List of points which were invalid.
+              Will be drawn in red.
+        """
         if len(projected) > 0:
             if self.draw_points:
                 self.draw_points_wrapper.draw_points(retrieved, self.current_group_name, "retrieved", DrawPointsWrapper.ANGLES, DrawPointsWrapper.WHITE, 0.1)
@@ -148,9 +210,13 @@ class RRNode:
                 self.draw_points_wrapper.draw_points(invalidDisplay, self.current_group_name, "invalid", DrawPointsWrapper.ANGLES, DrawPointsWrapper.RED, 0.2)
 
     def _retrieve_repair(self, action_goal):
+        """
+          Callback which performs the full Retrieve and Repair for the path.
+        """
         self.working_lock.acquire()
+        self.start_time = time.time()
+        self.stats_msg = RRStats()
         self._set_stop_value(False)
-        self.draw_points = False
         if self.draw_points:
             self.draw_points_wrapper.clear_points()
         rospy.loginfo("RR action server: RR got an action goal")
@@ -162,29 +228,42 @@ class RRNode:
         projected, retrieved, invalid = [], [], []
         repair_state = STATE_RETRIEVE
 
+        self.stats_msg.init_time = time.time() - self.start_time
+
+        # Go through the retrieve, repair, and return stages of the planning.
+        # The while loop should only ever go through 3 iterations, one for each
+        #   stage.
         while not self._need_to_stop() and repair_state != STATE_FINISHED:
             if repair_state == STATE_RETRIEVE:
+                start_retrieve = time.time()
                 projected, retrieved, invalid = self.path_library.retrieve_path(s, g, self.num_paths_checked, self.robot_name, self.current_group_name, self.current_joint_names)
+                self.stats_msg.retrieve_time.append(time.time() - start_retrieve)
                 if len(projected) == 0:
                     rospy.loginfo("RR action server: got an empty path for retrieve state")
                     repair_state = STATE_FINISHED
                 else:
+                    start_draw = time.time()
                     if self.draw_points:
                         self.do_retrieved_path_drawing(projected, retrieved, invalid)
+                    self.stats_msg.draw_time.append(time.time() - start_draw)
                     repair_state = STATE_REPAIR
             elif repair_state == STATE_REPAIR:
+                start_repair = time.time()
                 repaired = self._path_repair(projected, action_goal.allowed_planning_time.to_sec(), invalid_sections=invalid)
+                self.stats_msg.repair_time.append(time.time() - start_repair)
                 if repaired is None:
                     rospy.loginfo("RR action server: path repair didn't finish")
                     repair_state = STATE_FINISHED
                 else:
                     repair_state = STATE_RETURN_PATH
             elif repair_state == STATE_RETURN_PATH:
+                start_return = time.time()
                 res.status.status = res.status.SUCCESS
                 res.retrieved_path = [Float64Array(p) for p in retrieved]
                 res.repaired_path = [Float64Array(p) for p in repaired]
                 rospy.loginfo("RR action server: returning a path")
                 repair_state = STATE_FINISHED
+                self.stats_msg.return_time = time.time() - start_return
         if repair_state == STATE_RETRIEVE:
             rospy.loginfo("RR action server: stopped before it retrieved a path")
         elif repair_state == STATE_REPAIR:
@@ -192,9 +271,28 @@ class RRNode:
         elif repair_state == STATE_RETURN_PATH:
             rospy.loginfo("RR action server: stopped before it could return a repaired path")
         self.rr_server.set_succeeded(res)
+        self.stats_msg.total_time = time.time() - self.start_time
+        self.stats_pub.publish(self.stats_msg)
         self.working_lock.release()
 
     def _path_repair(self, original_path, planning_time, invalid_sections=None, use_parallel_repairing=True):
+        """
+          Goes through each invalid section in a path and calls a planner to
+            repair it, with the potential for multi-threading. Returns the
+            repaired path.
+
+          Args:
+            original_path (path): The original path which needs repairing.
+            planning_time (float): The maximum allowed planning time for
+              each repair, in seconds.
+            invalid_sections (list of pairs of indicies): The pairs of indicies
+              describing the invalid sections. If None, then the invalid
+              sections will be computed by this function.
+            use_parallel_repairing (bool): Whether or not to use multi-threading.
+
+          Returns:
+            path: The repaired path.
+        """
         zeros_tuple = tuple([0 for i in xrange(len(self.current_joint_names))])
         rospy.loginfo("RR action server: got path with %d points" % len(original_path))
 
@@ -267,6 +365,10 @@ class RRNode:
         self.stop_rr_planner_publisher.publish(msg)
 
     def _do_manage_action(self, request):
+        """
+          Processes a ManagePathLibraryRequest as part of the ManagePathLibrary
+            service. Basically, either stores a path in the library or deletes it.
+        """
         response = ManagePathLibraryResponse()
         response.result = response.FAILURE
         if request.robot_name == "" or len(request.joint_names) == 0:

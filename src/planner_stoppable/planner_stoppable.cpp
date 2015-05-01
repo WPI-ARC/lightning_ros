@@ -10,8 +10,6 @@ PlannerStoppable::PlannerStoppable(std::string name, std::string stop_name)
 void PlannerStoppable::run() {
   ros::service::waitForService("/get_planning_scene");
 
-  // Start monitor for keeping planningscene up-to-date.
-
   // Initializes planner and the such.
   if (!initialize()) return;
 
@@ -37,14 +35,13 @@ bool PlannerStoppable::initialize() {
       new robot_model_loader::RobotModelLoader("/robot_description"));
   robot_model::RobotModelPtr robot_model = robot_model_loader->getModel();
   ps_.reset(new planning_scene::PlanningScene(robot_model));
-  // XXX: ps_ may not be thread-safe.
   monitor_.reset(new planning_scene_monitor::PlanningSceneMonitor(ps_, robot_model_loader));
 
   // TODO: allow overriding of default service and topic subscriptions for
   // monitor_.
   // Get initial planning scene state from /get_planning_scene service.
   monitor_->requestPlanningSceneState("/get_planning_scene");
-  monitor_->startSceneMonitor("/planning_scene");//move_group/monitored_planning_scene"); // Default "/planning_scene"
+  monitor_->startSceneMonitor("/planning_scene");
 
   // We will now construct a loader to load a planner, by name.
   // Note that we are using the ROS pluginlib library here.
@@ -89,7 +86,7 @@ bool PlannerStoppable::initialize() {
 }
 
 void PlannerStoppable::stop_planning(const lightning::StopPlanning::ConstPtr &msg) {
-  // Note: If we want to be able to provide an error code, terminate() does
+  // TODO: If we want to be able to provide an error code, terminate() does
   // return success (as a bool).
   planner_instance_->terminate();
 }

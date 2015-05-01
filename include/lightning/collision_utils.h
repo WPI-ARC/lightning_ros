@@ -35,6 +35,11 @@ of its
 # POSSIBILITY OF SUCH DAMAGE.
 */
 
+/**
+ * This file contains several utility functions used by the CollisionChecker
+ * class.
+ */
+
 #ifndef COLLISION_UTILS_H_
 #define COLLISION_UTILS_H_
 
@@ -42,14 +47,69 @@ of its
 #include <math.h>
 #include <vector>
 
+/**
+ * Utility for getting a point a distance of dist from p1 along the line between
+ * p1 and p2.
+ *
+ * @param p1 Vector of first point.
+ * @param p2 Vector for second point; should be same length as p1.
+ * @param dist Distance from p1 to generate the returned point.
+ * @returns A vector of same size as p1 that is on the line between p1 and p2.
+ */
 std::vector<double> getPointBetween(const std::vector<double> &p1,
                                     const std::vector<double> &p2, double dist);
+
+/**
+ * Takes path and interpolates points between consecutive points such that the
+ * returned path has points at intervals of step_size.
+ *
+ * @param path Path to be discretized.
+ * @param step_size Maximum step between resultant points.
+ * @returns A path with points separated by at most step_size and passes through
+ *   the points of path.
+ */
 std::vector<std::vector<double> > rediscretizePath(
     const std::vector<std::vector<double> > &path, double step_size);
+
+/**
+ * Takes to angles and returns the absolute value of the difference such that it
+ * is between 0 and pi.
+ *
+ * @param a An angle, in radians.
+ * @param b Another angle, in radians.
+ * @returns The absolute value of the difference between a and b, bound to [0, PI).
+ */
 double getAngleBetween(double a, double b);
+
+/**
+ * Returns the distance between two N-Dimensional points.
+ *
+ * @param p1 A point reprsented by a vector.
+ * @param p2 Another point, with the same size as p1.
+ * @returns The distance between p1 and p2.
+ */
 double getLineDistance(const std::vector<double> &p1,
                        const std::vector<double> &p2);
+
+/**
+ * Goes with getAngleBetween(); essentially, it determines the sign of the angle
+ * that is returned by getAngleBetween().
+ *
+ * @param a An angle, in radians.
+ * @param b Another angle, in radians.
+ * @returns The sign of (b - a) when scaled to -PI to +PI.
+ */
 int getDirectionMultiplier(double a, double b);
+
+/**
+ * Interpolates between two points with a distance between each resultant point
+ * of step_size.
+ *
+ * @param p1 First point to interpolate from.
+ * @param p2 Vector of same length as p1.
+ * @param step_size distance between points in generated interpolation.
+ * @returns a vector of points representing the line between the two points.
+ */
 std::vector<std::vector<double> > interpolate(const std::vector<double> &p1,
                                               const std::vector<double> &p2,
                                               double step_size);

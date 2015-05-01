@@ -44,13 +44,17 @@ from lightning.msg import Status
 from lightning.msg import DrawPoints
 from moveit_msgs.msg import RobotState
 from moveit_msgs.srv import GetPlanningSceneRequest, GetPlanningScene, GetPositionFKRequest, GetPositionFK, GetKinematicSolverInfo, GetKinematicSolverInfoRequest
-#from kinematics_msgs.srv import GetKinematicSolverInfo, GetKinematicSolverInfoRequest, GetPositionFK, GetPositionFKRequest
 from geometry_msgs.msg import Point
 
 DRAW_POINTS = "draw_points"
 MARKER_SUBSCRIBER_NAME = "visualization_marker"
 
 class PointDrawer:
+    """
+      This handles the direct drawing of points in RViz by listening to the
+        DRAW_POINTS topic and then publishing a MarkerArray which can be
+        visualized in RViz.
+    """
     def __init__(self):
         self.current_points = dict()
         self.draw_subscriber = rospy.Subscriber(DRAW_POINTS, DrawPoints, self._do_draw_action)

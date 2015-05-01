@@ -47,31 +47,39 @@ of its
 #include "lightning/collision_checker.h"
 #include "lightning/collision_utils.h"
 
+/**
+ * The CollisionCheckService advertises a CollisionCheck service which takes a
+ * set of paths and returns the ranges of indices of invalid sections.
+ */
 class CollisionCheckService {
  public:
   CollisionCheckService() : private_handle_("~") {
+    // Retrieve parameter information from ROS parameter server.
     handle_.getParam("step_size", step_size_);
     private_handle_.getParam("num_threads", num_threads_);
+
+    // Wait for the get_planning_scene service to be advertised so that the
+    // CollisionChecker can get the initial PlanningScene without any issue.
     ros::service::waitForService("/get_planning_scene");
-    ROS_INFO("About to construct Collision Checker.");
+
+    // Construct the collision checker with the retrieved step size.
     collision_checker_ = new CollisionChecker(step_size_);
-    ROS_INFO("Constructed Collision Checker.");
   }
 
   ~CollisionCheckService() {
     delete collision_checker_;
   }
 
+  // Begin advertising the service.
   void run() {
-    if (!collision_checker_->collisionModelsInterfaceLoadedModels()) {
-      ROS_ERROR("Collision check service: Collision models not loaded");
-    } else {
-      service_ = handle_.advertiseService(
-          "collision_check", &CollisionCheckService::getAllInvalidSections,
-          this);
-    }
+    service_ = handle_.advertiseService(
+        "collision_check", &CollisionCheckService::getAllInvalidSections, this);
   }
 
+  // Callback for CollisionCheck service. req includes a list of paths to check
+  // (essentially a vector of vectors of vectors) and the response contains a
+  // list of lists of pairs of integers representing the start and end indices
+  // of the colliding portions of each path.
   bool getAllInvalidSections(lightning::CollisionCheck::Request &req,
                              lightning::CollisionCheck::Response &res) {
     res.status.status = lightning::Status::FAILURE;
@@ -100,17 +108,23 @@ class CollisionCheckService {
       double paths_per_thread = ((double)req.paths.size()) / num_threads_;
       ROS_INFO("Collision check service: paths per thread = %f",
                paths_per_thread);
+      // Set of paths for thread to collision check.
       std::vector<std::vector<std::vector<double> > > paths_for_thread;
+      // The indicies corresponding to the paths a thread will work on, so that
+      // it knows where to store its results in the result vector.
       std::vector<int> indicies_for_thread;
       int threads_used = 0;
+
+      // Iterates through each path and after having gone through the
+      // appropriate number of paths, passes the paths off to a new thread to
+      // handle the collision checking.
       for (unsigned int i = 0; i < all_paths.size(); i++) {
         paths_for_thread.push_back(all_paths[i]);
         indicies_for_thread.push_back(i);
         if (i + 1 >= (unsigned int)((threads_used + 1) * paths_per_thread)) {
-          // TODO: Check thread safety of i_s_thread_func_first.
-          all_threads.push_back(
-              new boost::thread(&CollisionCheckService::i_s_thread_func_first,
-                                this, paths_for_thread, indicies_for_thread));
+          all_threads.push_back(new boost::thread(
+              &CollisionCheckService::i_s_thread_func, this, paths_for_thread,
+              indicies_for_thread, threads_used == 0));
           threads_used++;
           paths_for_thread.clear();
           indicies_for_thread.clear();
@@ -126,7 +140,7 @@ class CollisionCheckService {
       }
       all_threads.clear();
 
-      // put invalid sections back into message
+      // put invalid sections into message
       lightning::IntArray invalid_section_msg;
       lightning::IntArray2D invalid_sections_msg;
       for (unsigned int i = 0; i < all_invalid_sections_.size(); i++) {
@@ -137,6 +151,8 @@ class CollisionCheckService {
         }
         res.invalid_sections.push_back(invalid_sections_msg);
       }
+
+      // Be sure to release the scene.
       collision_checker_->releaseScene();
       res.status.status = lightning::Status::SUCCESS;
     }
@@ -144,31 +160,64 @@ class CollisionCheckService {
   }
 
  private:
+  // ROS Node handles.
   ros::NodeHandle private_handle_, handle_;
+
+  // Pointer to collision checker.
+  // Should be moved away from a raw pointer at some point.
   CollisionChecker *collision_checker_;
+
+  // Server for the collision_check service.
   ros::ServiceServer service_;
+
+  // Step size to pass to collision_checker. Not actually used by
+  // collision_checker_ in the methods which are called here.
   double step_size_;
+
+  // Maximum number of collision checking threads to run at a time.
   int num_threads_;
+
+  // Information about the paths being collision checked.
   std::vector<std::vector<std::vector<int> > > all_invalid_sections_;
   boost::mutex invalid_sections_lock_;
   std::vector<std::string> joint_names_;
   int num_joints_;
 
-  void i_s_thread_func_first(
+  /**
+   * This is the function that should be called when spawning the collision
+   *checking threads.
+   * It takes a set of paths and stores the indices of their colliding sections
+   * in the all_invalid_sections_ member variable.
+   *
+   * @param paths A vector of paths to check for collisions.
+   * @param indices The indicies of all_invalid_sections_ which correspond to
+   * each path in paths.
+   * @param first Whether or not this is the first thread being created; passed
+   * to the CollisionChecker class so that it knows how to handle thread safety.
+   * When in doubt, set to false.
+   */
+  void i_s_thread_func(
       std::vector<std::vector<std::vector<double> > > paths,
-      std::vector<int> indicies) {
+      std::vector<int> indicies, bool first) {
+    // Initialize variables.
     std::vector<std::vector<int> > invalid_sections_for_path;
     std::vector<int> current_invalid_section;
     current_invalid_section.resize(2);
     int start_invalid = -1;
     bool tracking_invalid = false;
+
+    // Iterate through each point in each path and determine whether it is in
+    // collision or not, and generate a list of pairs of points which correspond
+    // to the starts and ends of invalid sets of points in the paths.
     for (unsigned int i = 0; i < paths.size(); i++) {
       ROS_INFO("Collision check service: working on path %i", indicies[i]);
       invalid_sections_for_path.clear();
       start_invalid = -1;
       tracking_invalid = false;
+      // Iterate through each point in the path.
       for (unsigned int j = 0; j < paths[i].size(); j++) {
-        if (collision_checker_->isStateValid(paths[i][j])) {
+        if (collision_checker_->isStateValid(paths[i][j], !first /*Thread safety*/)) {
+          // Checks for if we are at the end of an invalid section.
           if (tracking_invalid) {
             current_invalid_section[0] = start_invalid;
             current_invalid_section[1] = j;
@@ -176,11 +225,14 @@ class CollisionCheckService {
             tracking_invalid = false;
           }
         } else {
+          // Debugging info.
           if (j == paths[i].size() - 1) {
             ROS_INFO("Collision check service: goal state is invalid");
           } else {
             ROS_INFO("State %d invalid.", j);
           }
+
+          // Checks if we are at the start of an invalid section.
           if (!tracking_invalid) {
             start_invalid = j - 1;
             tracking_invalid = true;
@@ -193,6 +245,7 @@ class CollisionCheckService {
         current_invalid_section[1] = paths[i].size();
         invalid_sections_for_path.push_back(current_invalid_section);
       }
+
       // store invalid sections to return
       invalid_sections_lock_.lock();
       all_invalid_sections_[indicies[i]] = invalid_sections_for_path;

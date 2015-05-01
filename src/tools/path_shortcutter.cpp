@@ -46,27 +46,41 @@ of its
 #include "lightning/collision_checker.h"
 #include "lightning/collision_utils.h"
 
+/**
+ * The PathShortcutter advertises a service which will go through a path and
+ * randomly select pairs of points and attempt to interpolate straight between
+ * them to simplify the path.
+ */
 class PathShortcutter {
  public:
   PathShortcutter() : private_handle_("~") {
+    // Retrieve settings from parameter server.
+    // The step size is the distance between interpolated points when
+    // interpolating and collision checking.
     handle_.getParam("step_size", step_size_);
-    ros::service::waitForService("/get_planning_scene");
+    // num_iters_ is the number of random pairs of points to attempt to shortcut
+    // between.
     private_handle_.getParam("num_iterations", num_iters_);
+    // When path shortcutting, if we don't have the potential of saving at least
+    // as much as this fraction of the distance, then don't bother even doing
+    // the collision checking.
     private_handle_.getParam("ignore_fraction", distance_fraction_);
+
+    // Wait until the collision checker can actually retrieve a valid planning
+    // scene.
+    ros::service::waitForService("/get_planning_scene");
     collision_checker_ = new CollisionChecker(step_size_);
   }
 
   ~PathShortcutter() { delete collision_checker_; }
 
+  // Actually advertise the service.
   void run() {
-    if (!collision_checker_->collisionModelsInterfaceLoadedModels()) {
-      ROS_ERROR("Path shortcutter: Collision models not loaded");
-    } else {
-      service_ = handle_.advertiseService("shortcut_path",
-                                          &PathShortcutter::shortcutPath, this);
-    }
+    service_ = handle_.advertiseService("shortcut_path",
+                                        &PathShortcutter::shortcutPath, this);
   }
 
+  // Callback for the actual shortcutting service.
   bool shortcutPath(lightning::PathShortcut::Request &req,
                     lightning::PathShortcut::Response &res) {
     res.status.status = lightning::Status::FAILURE;
@@ -78,6 +92,7 @@ class PathShortcutter {
       orig_path.push_back(req.path[i].values);
     }
 
+    // Perform actual shortcutting.
     if (collision_checker_->acquireScene(req.group_name)) {
       std::vector<std::vector<double> > short_path = doShortcutting(orig_path);
       collision_checker_->releaseScene();
@@ -102,15 +117,18 @@ class PathShortcutter {
   ros::NodeHandle private_handle_, handle_;
   CollisionChecker *collision_checker_;
   ros::ServiceServer service_;
+
+  // Configuration variables loaded from parameter server; see constructor.
   double step_size_;
   int num_iters_;
   double distance_fraction_;
 
-  // returns a random number in the interval [0, max_value)
+  // returns a random integer in the interval [0, max_value)
   int getRandWithMax(int max_value) {
     return (int)(max_value * (rand() / (RAND_MAX + 1.0)));
   }
 
+  // Get distance along path between indicies index1 and index 2.
   double getFullDistance(std::vector<std::vector<double> > &path, int index1,
                          int index2) {
     double dist = 0;
@@ -120,11 +138,15 @@ class PathShortcutter {
     return dist;
   }
 
+  // do shortcutting and return shortcutted path.
   std::vector<std::vector<double> > doShortcutting(
       std::vector<std::vector<double> > &orig_path) {
     int rand1, rand2, temp;
     std::vector<std::vector<double> > new_path = orig_path;
     std::vector<std::vector<double> > new_points;
+
+    // Iterate through; each time, chose a random pair of points and try
+    // shortcutting.
     for (int i = 0; i < num_iters_; i++) {
       rand1 = getRandWithMax(new_path.size());
       rand2 = getRandWithMax(new_path.size());
@@ -133,10 +155,14 @@ class PathShortcutter {
         rand1 = rand2;
         rand2 = temp;
       }
+      // Don't even bother collision checking unless rand2 and rand1 are both
+      // not already next to each other and so long as there is an appreciable
+      // amount of distance that we actually of the potential to save.
       if (rand2 - rand1 > 1 &&
           (getFullDistance(new_path, rand1, rand2) >
            (1.0 + distance_fraction_) *
                getLineDistance(new_path[rand1], new_path[rand2]))) {
+        // Actually do collision check and update path if interpolation is valid
         if (collision_checker_->checkMiddleAndReturnPoints(
                 new_path[rand1], new_path[rand2], new_points)) {
           new_path.erase(new_path.begin() + rand1 + 1,

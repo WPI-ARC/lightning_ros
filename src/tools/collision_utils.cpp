@@ -35,6 +35,8 @@ of its
 # POSSIBILITY OF SUCH DAMAGE.
 */
 
+// See collision_utils.h for additional documentation.
+
 #include "lightning/collision_utils.h"
 
 std::vector<double> getPointBetween(const std::vector<double> &p1,

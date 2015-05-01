@@ -2,8 +2,9 @@
     <!-- all lightning default parameters are set here -->
     <group ns="lightning">
         <param name="robot_name" value="pr2" />
-        <param name="step_size" value="0.005" />
+        <param name="step_size" value="0.05" />
         <param name="draw_points" value="true" />
+        <param name="publish_stats" value="true" />
         <remap from="register_planning_scene" to="/register_planning_scene" />
 
         <!-- returns invalid sections of paths -->
@@ -12,7 +13,7 @@
         </node>
 
         <node name="path_shortcutter_service" pkg="lightning" type="path_shortcutter" output="screen">
-            <param name="num_iterations" value="100" />
+            <param name="num_iterations" value="20" />
             <param name="ignore_fraction" value="0.1" />
         </node>
 
@@ -37,7 +38,7 @@
         <node name="lightning" pkg="lightning" type="run_lightning.py" output="screen">
             <param name="store_paths" value="true" />
             <param name="use_RR" value="true" />
-            <param name="use_PFS" value="false" />
+            <param name="use_PFS" value="true" />
         </node>
     </group>
 </launch>

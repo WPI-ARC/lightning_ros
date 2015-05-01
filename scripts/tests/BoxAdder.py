@@ -56,6 +56,12 @@ BOX_CENTER_Y = 0
 BOX_CENTER_Z = 0.95
 
 class BoxAdder:
+    """
+      This class serves to add rectangular prisms (boxes) to the planning scene
+        so that they can be seen in RViz and can be taken into account in the
+        collision checkers.
+    """
+
     def __init__(self):
         self.spsd_pub = rospy.Publisher(SET_PLANNING_SCENE_DIFF_NAME, PlanningScene, queue_size=10);
         self.diff = PlanningScene()
@@ -68,6 +74,9 @@ class BoxAdder:
         self._set_planning_scene()
 
     def reset_box_scene(self):
+        """
+          Sets up the scene for BoxTest.
+        """
         self.diff = PlanningScene()
         self.diff.is_diff = True
         rospy.loginfo("BoxAdder: reset_box_scene: starting")
@@ -77,6 +86,9 @@ class BoxAdder:
         rospy.loginfo("BoxAdder: reset_box_scene: set planning scene")
 
     def set_table_scene(self, new_positions):
+        """
+          Sets up the scene for TableTest.
+        """
         height = SMALL_BOX_SIZE
         side = SMALL_BOX_SIZE
         self.diff = PlanningScene()
@@ -87,6 +99,9 @@ class BoxAdder:
         self._set_planning_scene()
 
     def _add_box(self, name, px, py, pz, sl, sw, sh):
+        """
+          Performs the simple adding of a single box with given dimensions.
+        """
         obj = CollisionObject()
         obj.id = name
         obj.operation = obj.ADD
@@ -110,6 +125,9 @@ class BoxAdder:
         self.diff.world.collision_objects.append(obj)
 
     def _add_box_scene(self):
+        """
+          Creates the boxes necessary specifically for BoxTest.
+        """
         self._add_box("box_top", BOX_CENTER_X, BOX_CENTER_Y, BOX_CENTER_Z+0.25, 0.42, 0.42, 0.05)
         self._add_box("box_bottom", BOX_CENTER_X, BOX_CENTER_Y, BOX_CENTER_Z-0.25, 0.42, 0.42, 0.05)
         self._add_box("box_left", BOX_CENTER_X, BOX_CENTER_Y+0.25, BOX_CENTER_Z, 0.42, 0.05, 0.42)
@@ -117,9 +135,15 @@ class BoxAdder:
         self._add_box("counter", BOX_CENTER_X+0.10, BOX_CENTER_Y, BOX_CENTER_Z-0.45, 0.8, 2.5, 0.35)
 
     def _add_static_table_boxes(self):
+        """
+          Creates the counter used for the TableTest.
+        """
         self._add_box("counter", 0.8, 0.0, TABLE_LEVEL-0.08, 0.5, 1.8, 0.05)
 
     def _set_planning_scene(self):
+        """
+          Actually publish our new boxes.
+        """
         while rospy.get_time() == 0:
             rospy.sleep(0.1);
         for obj in self.diff.world.collision_objects:

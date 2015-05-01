@@ -36,6 +36,15 @@ of its
 # POSSIBILITY OF SUCH DAMAGE.
 """
 
+"""
+  This node handles setting up and running the lightning tests.
+  There are two basic tests, the BoxTest and TableTest. The main difference
+  between them for the purposes of this code is that they require slightly
+  different sets of obstacles to be set up in the planning environment, but
+  other than that, they are relatively similar at this level and this code
+  handles runnign the tests, calling the planners, etc.
+"""
+
 import roslib
 import rospy
 
@@ -45,9 +54,9 @@ from pathlib.PathLibrary import PathLibrary
 from gazebo_msgs.srv import SetModelState, SetModelStateRequest, SetModelConfiguration, SetModelConfigurationRequest
 from moveit_msgs.srv import GetMotionPlan, GetMotionPlanRequest
 from moveit_msgs.msg import JointConstraint, RobotState, Constraints
+from std_msgs.msg import Empty
 from pr2_mechanism_msgs.srv import SwitchController, SwitchControllerRequest
 from moveit_msgs.srv import GetPlanningSceneRequest, GetPlanningScene, GetPositionIKRequest, GetPositionIK, GetKinematicSolverInfo, GetKinematicSolverInfoRequest
-#from kinematics_msgs.srv import GetKinematicSolverInfo, GetKinematicSolverInfoRequest, GetConstraintAwarePositionIK, GetConstraintAwarePositionIKRequest
 
 from random import random
 import time
@@ -102,6 +111,7 @@ class LightningTester:
             return True
 
     def _create_get_motion_plan_request(self, start_point, goal_point, group_name, joint_names, planning_time):
+        # Just puts together a MotionPlanRequest to send to the lightning node.
         req = GetMotionPlanRequest()
         req.motion_plan_request.group_name = group_name
 
@@ -143,6 +153,19 @@ class LightningTester:
         rospy.sleep(0.5)
 
     def _do_ik(self, px, py, pz, arm):
+        """
+          Does inverse kinematics for a given arm and given position.
+          This solver is collision aware.
+
+          Args:
+            px, py, pz (float): Cartesian coordinates for position of arm end
+              effector.
+            arm (str): Which arm ("right_arm" or "left_arm") to do ik for.
+
+          Returns:
+            list: List of joint configuration for specific arm. Returns an
+              empty list if unable to do IK.
+        """
         IK_INFO_NAME = "/pr2_%s_kinematics/get_ik_solver_info" % (arm)
         IK_NAME = "/compute_ik"
 
@@ -193,6 +216,10 @@ class LightningTester:
         return 0
 
     def _sample_table_scene(self, n, group_name):
+        """
+          Attempts to generate a random positioning of boxes on the table for
+            TableTest.
+        """
         rospy.loginfo("Lightning test: sample table scene: Started")
         if group_name == "right_arm":
             x_range, y_range, z = (0.6, 1.0), (-0.8, 0.2), TABLE_LEVEL
@@ -255,18 +282,31 @@ class LightningTester:
                         break
 
     def _step_path_automatic(self, path, controller_name):
+        """
+          Goes through and iterates the PR2 through a set of joint positions.
+        """
         for point in path:
             self.move_to_joint_configs(controller_name, point)
-            rospy.sleep(0.005)
+            rospy.sleep(0.002)
 
     def _sample_box_goal(self, arm, y_offset=0):
+        """
+          Generates a random goal for the box and returns either a valid
+            goal or an empty list.
+
+          Args:
+            arm (str): "right_arm" or "left_arm".
+          Return:
+            list: A list of joint positions for the goal. Empty if the random
+              position we sample was infeasible.
+        """
         rospy.loginfo("LightningTest: sample_box_goal: Starting.")
         if arm == "right_arm":
             x_range, y_range, z_range = (0.60, 0.7), (-0.2, 0.2), (0.8, 1.1)
         elif arm == "left_arm":
             x_range, y_range, z_range = (0.55, 0.7), (-0.2, 0.2), (0.8, 1.1)
         else:
-            rospy.loginfo("Lightning test: sample box goal: invalid group name: %s" % (group_name))
+            rospy.loginfo("Lightning test: sample box goal: invalid group name: %s" % (arm))
             return []
         rospy.loginfo("LightningTest: sample_box_goal: About to compute rand.")
         rand_x = x_range[0]+(x_range[1]-x_range[0])*random()
@@ -276,12 +316,22 @@ class LightningTester:
         return list(self._do_ik(rand_x, rand_y, rand_z, arm))
 
     def _sample_table_goal(self, arm, y_offset=0):
+        """
+          Generates a random goal for the table and returns either a valid
+            goal or an empty list.
+
+          Args:
+            arm (str): "right_arm" or "left_arm".
+          Return:
+            list: A list of joint positions for the goal. Empty if the random
+              position we sample was infeasible.
+        """
         if arm == "right_arm":
             x_range, y_range, z = (0.6, 1.0), (-0.6, -0.1), TABLE_LEVEL+0.02
         elif arm == "left_arm":
             x_range, y_range, z = (0.6, 1.0), (0.1, 0.6), TABLE_LEVEL+0.02
         else:
-            rospy.loginfo("Lightning test: sample table goal: invalid group name: %s" % (group_name))
+            rospy.loginfo("Lightning test: sample table goal: invalid group name: %s" % (arm))
             return []
         rand_x = x_range[0]+(x_range[1]-x_range[0])*random()
         rand_y = y_range[0]+(y_range[1]-y_range[0])*random()
@@ -289,6 +339,30 @@ class LightningTester:
 
     #make sure to turn off the arm controller before calling runIterations
     def _run_iterations_common(self, s, n, sample_box_func, sample_goal_func, no_movement, waiting_time, group_name, joint_names, controller_name, planning_time):
+        """
+          Handles running however many iterations of the tests are necessary
+          and does much of the necessary setup. Common to all tests.
+
+          Args:
+            s (list of float): The start state of the PR2 for each iteration.
+            n (int): The number of iterations to run.
+            sample_box_func (function): Function which takes no arguments and
+              generates any changes to the planning seen that are necessary and
+              returns a y_offset for the goal.
+            sample_goal_func (function): Function which takes two arguments, a
+              string for a group name ("right_arm" or "left_arm") and the
+              y_offset from sample_box_func. Should return a valid goal, or
+              an empty list of sampling the goal failed.
+            no_movement (bool): Whether or not to actually move the PR2.
+            waiting_time (float): Time, in seconds, to sleep between each
+              iteration.
+            group_name (str): Name of planning group ("right_arm" or "left_arm")
+            joint_names (list of str): List of joint names for group.
+            controller_name (str): Name of controller to use for commanding the PR2.
+              Only really relevant if no_movement is False.
+            planning_time (float): Time, in seconds, to pass to the planner as
+              maximum allowable time to take.
+        """
         rospy.loginfo("Lightning tester: number of test iterations = %i" % (n))
         self.move_to_joint_configs(controller_name, s)
         max_counter = 100
@@ -304,6 +378,7 @@ class LightningTester:
             rospy.loginfo("Called sample_box_func")
             goal = sample_goal_func(group_name, y_offset)
             rospy.loginfo("Called sample_goal_func")
+            # Attempt to get a goal until a goal is actually returned.
             while len(goal) == 0 and counter < max_counter:
                 goal = sample_goal_func(group_name, y_offset)
                 counter += 1
@@ -317,9 +392,15 @@ class LightningTester:
                 rospy.loginfo("Lightning tester: done waiting")
 
     def run_iterations_box(self, s, n, no_movement, group_name, joint_names, controller_name, planning_time=60.0, waiting_time=5.0):
+        """
+          Runs iterations for BoxTest. See _run_iterations_common() for more info.
+        """
         self._run_iterations_common(s, n, self._reset_box_scene, self._sample_box_goal, no_movement, waiting_time, group_name, joint_names, controller_name, planning_time)
 
     def run_iterations_table(self, s, n, no_movement, group_name, joint_names, controller_name, planning_time=60.0, waiting_time=5.0, numBoxes=4):
+        """
+          Runs iterations for TableTest. See _run_iterations_common() for more info.
+        """
         sample_box_func = (lambda: self._sample_table_scene(numBoxes, group_name))
         self._run_iterations_common(s, n, sample_box_func, self._sample_table_goal, no_movement, waiting_time, group_name, joint_names, controller_name, planning_time)
 
@@ -332,6 +413,10 @@ if __name__ == "__main__":
         rospy.loginfo("Lightning test: waiting for lightning")
         tester.wait_for_lightning()
         rospy.loginfo("Lightning test: done waiting for lightning")
+        # This is just used so to indicate when the test node is done running,
+        # in particular so that something collecting statistics on the timing
+        # of the tests can know when everything is done.
+        done_pub = rospy.Publisher("done", Empty, queue_size=10)
 
         right_start = [-1.5777, 1.2081, -0.0126, -1.2829, -1.5667, -1.5655, 1.64557]
         tester.switch_off_controller(RIGHT_ARM_JOINT_CONTROLLER)
@@ -341,6 +426,8 @@ if __name__ == "__main__":
         tester.switch_off_controller(LEFT_ARM_JOINT_CONTROLLER)
         tester.move_to_joint_configs(LEFT_ARM_JOINT_CONTROLLER, left_start)
 
+        # Depending on which arm we are using and which test we are running,
+        #   call a slightly different function.
         if len(sys.argv) >= 4 and sys.argv[1].find("table") == 0 and sys.argv[2] == "right":
             tester.run_iterations_table(right_start, int(sys.argv[3]), False, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planning_time=40.0, waiting_time=1.0)
         elif len(sys.argv) >= 4 and sys.argv[1].find("box") == 0 and sys.argv[2] == "right":
@@ -354,5 +441,7 @@ if __name__ == "__main__":
             tester.run_iterations_box(right_start, int(sys.argv[2]), True, "right_arm", RIGHT_ARM_JOINT_NAMES, RIGHT_ARM_JOINT_CONTROLLER, planning_time=20.0, waiting_time=5.0)
         else:
             rospy.loginfo("Lightning tester: nothing to do")
+        done_pub.publish()
+        rospy.sleep(1.0)
     except rospy.ROSInterruptException:
         pass;

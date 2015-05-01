@@ -54,7 +54,7 @@ import threading
 
 import time
 
-from lightning.msg import RRAction, RRGoal, PFSAction, PFSGoal, Float64Array, StopPlanning
+from lightning.msg import RRAction, RRGoal, PFSAction, PFSGoal, Float64Array, StopPlanning, Stats
 from lightning.srv import ManagePathLibrary, ManagePathLibraryRequest, PathShortcut, PathShortcutRequest
 from moveit_msgs.srv import GetMotionPlan, GetMotionPlanResponse
 from std_msgs.msg import Float32
@@ -77,13 +77,10 @@ MANAGE_LIBRARY = "manage_path_library"
 class Lightning:
     def __init__(self):
         rospy.wait_for_service(SET_PLANNING_SCENE_DIFF_NAME); #make sure the environment server is ready before starting up
-        self.rr_won_pub = rospy.Publisher("num_rr_won", Float32, queue_size=10)
-        self.time_pub = rospy.Publisher("time", Float32, queue_size=10)
-        self.num_rr_won = 0
         # Initialize clients for planners.
         self.rr_client = actionlib.SimpleActionClient(RR_NODE_NAME, RRAction)
         self.pfs_client = actionlib.SimpleActionClient(PFS_NODE_NAME, PFSAction)
-        # Client for managing
+        # Client for managing path library.
         self.manage_library_client = rospy.ServiceProxy(MANAGE_LIBRARY, ManagePathLibrary)
         self.store_paths = rospy.get_param("~store_paths")
         self.use_rr = rospy.get_param("~use_RR")
@@ -107,7 +104,13 @@ class Lightning:
         if self.draw_points:
             self.draw_points_wrapper = DrawPointsWrapper()
 
-    # Called in a separate plan to stop the planning nodes in case of timeout.
+        self.publish_stats = rospy.get_param("publish_stats")
+        if self.publish_stats:
+          # Publishes statistics having to do with the time it takes various
+          # parts of the lightning planner to run.
+          self.stat_pub = rospy.Publisher("stats", Stats, queue_size=10)
+
+    # Called in a separate thread to stop the planning nodes in case of timeout.
     def _lightning_timeout(self, time):
         self.lightning_response_ready_event.wait(time)
         if self.lightning_response is None:
@@ -140,7 +143,7 @@ class Lightning:
         timer = threading.Thread(target=self._lightning_timeout, args=(request.motion_plan_request.allowed_planning_time,))
         timer.start()
 
-        self.start_time = time.clock()
+        self.start_time = time.time() # Used for timing stats.
         # Send action requests to RR and PFS nodes.
         if self.use_rr:
             rr_client_goal = RRGoal()
@@ -211,16 +214,21 @@ class Lightning:
     # path, so long as the planner succeeds.
     def _rr_done_cb(self, state, result):
         self.done_lock.acquire()
-        self.time_pub.publish(time.clock() - self.start_time)
         self.rr_returned = True
+        if self.publish_stats:
+          stat_msg = Stats()
+          stat_msg.plan_time = time.time() - self.start_time
         if result.status.status == result.status.SUCCESS:
             if not self.pfs_returned or self.lightning_response is None:
                 self._send_stop_pfs_planning()
 
                 rr_path = [p.values for p in result.repaired_path]
-                #shortcut = self.shortcut_path_wrapper.shortcut_path(rr_path, self.current_group_name)
+                shortcut_start = time.time()
+                shortcut = self.shortcut_path_wrapper.shortcut_path(rr_path, self.current_group_name)
+                if self.publish_stats:
+                  stat_msg.shortcut_time = time.time() - shortcut_start
 
-                self.lightning_response = self._create_get_motion_plan_response(rr_path)#shortcut)
+                self.lightning_response = self._create_get_motion_plan_response(shortcut)
                 self.lightning_response_ready_event.set()
 
                 self.done_lock.release()
@@ -234,8 +242,10 @@ class Lightning:
                     self._special_print("Lightning: Got a path from RR, path stored = %s, number of library paths = %i" % (store_response))
                 else:
                     self._special_print("Lightning: Got a path from RR")
-                self.num_rr_won += 1
-                self.rr_won_pub.publish(self.num_rr_won)
+                if self.publish_stats:
+                  stat_msg.time = time.time() - self.start_time
+                  stat_msg.rr_won = True
+                  self.stat_pub.publish(stat_msg)
                 return
         else:
             rospy.loginfo("Lightning: Call to RR did not return a path")
@@ -249,16 +259,22 @@ class Lightning:
     # path, so long as the planner succeeds.
     def _pfs_done_cb(self, state, result):
         self.done_lock.acquire()
-        self.time_pub.publish(time.clock() - self.start_time)
         self.pfs_returned = True
+        if self.publish_stats:
+          stat_msg = Stats()
+          stat_msg.rr_won = False
+          stat_msg.plan_time = time.time() - self.start_time
         if result.status.status == result.status.SUCCESS:
             if not self.rr_returned or self.lightning_response is None:
                 self._send_stop_rr_planning()
 
                 pfsPath = [p.values for p in result.path]
-                #shortcut = self.shortcut_path_wrapper.shortcut_path(pfsPath, self.current_group_name)
+                shortcut_start = time.time()
+                shortcut = self.shortcut_path_wrapper.shortcut_path(pfsPath, self.current_group_name)
+                if self.publish_stats:
+                  stat_msg.shortcut_time = time.time() - shortcut_start
 
-                self.lightning_response = self._create_get_motion_plan_response(pfsPath)#shortcut)
+                self.lightning_response = self._create_get_motion_plan_response(shortcut)
                 self.lightning_response_ready_event.set()
 
                 self.done_lock.release()
@@ -272,7 +288,9 @@ class Lightning:
                     self._special_print("Lightning: Got a path from PFS, path stored = %s, number of library paths = %i" % (store_response))
                 else:
                     self._special_print("Lightning: Got a path from PFS")
-                self.rr_won_pub.publish(self.num_rr_won)
+                if self.publish_stats:
+                  stat_msg.time = time.time() - self.start_time
+                  self.stat_pub.publish(stat_msg)
                 return
         else:
             rospy.loginfo("Lightning: Call to PFS did not return a path")

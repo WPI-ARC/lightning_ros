@@ -292,9 +292,9 @@ class PathLibrary:
         pids, path_names, paths = zip(*closest_n)
         projections = [self._path_projection(path, s, g) for path in paths]
         rospy.loginfo("Path library: start %s, goal %s" % (str(s), str(g)))
-        start_time = time.clock()
+        start_time = time.time()
         all_invalid_sections = self.invalid_section_wrapper.get_invalid_sections_for_paths(projections, group_name);
-        rospy.loginfo("Path library: took %f seconds to do collision checking" % (time.clock() - start_time))
+        rospy.loginfo("Path library: took %f seconds to do collision checking" % (time.time() - start_time))
         rospy.loginfo("Path library: all invalid sections: %s" % (zip(pids, all_invalid_sections)))
         best_path = (float('inf'), None); #form is (v, path)
         for index, path in enumerate(projections):

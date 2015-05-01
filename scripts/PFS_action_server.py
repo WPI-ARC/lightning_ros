@@ -45,7 +45,6 @@ over OMPL.
 """
 
 import roslib
-#roslib.load_manifest("lightning")
 import rospy
 import actionlib
 import threading
@@ -55,15 +54,19 @@ from lightning.msg import StopPlanning, Float64Array
 
 from tools.PathTools import PlanTrajectoryWrapper
 
-
+# The name of this node.
 PFS_NODE_NAME = "pfs_node";
+# The topic to Publish which tells the actual planners to stop.
 STOP_PLANNER_NAME = "stop_pfs_planning";
+# The topic to listen to which is used to tell us to stop.
 STOP_PFS_NAME = "stop_all_pfs";
-SET_PLANNING_SCENE_DIFF_NAME = "/get_planning_scene";
+# The service which, when up, indicates that moveit is started.
+PLANNING_SCENE_SERV_NAME = "/get_planning_scene";
 
 class PFSNode:
     def __init__(self):
-        rospy.wait_for_service(SET_PLANNING_SCENE_DIFF_NAME); #make sure the environment server is ready before starting up
+        # Make sure that the moveit server is ready before starting up
+        rospy.wait_for_service(PLANNING_SCENE_SERV_NAME);
         self.plan_trajectory_wrapper = PlanTrajectoryWrapper("pfs")
         self.planner_config_name = rospy.get_param("planner_config_name")
         self.stop_lock = threading.Lock()
@@ -96,6 +99,9 @@ class PFSNode:
         return ret
 
     def _get_path(self, action_goal):
+        """
+          Callback which retrieves a path given a goal.
+        """
         self._set_stop_value(False)
         rospy.loginfo("PFS action server: PFS got an action goal")
         res = PFSResult()
@@ -114,6 +120,7 @@ class PFSNode:
             return
 
         if not self._get_stop_value():
+            # The planner succeeded; actually return the path in the result.
             res.status.status = res.status.SUCCESS
             res.path = [Float64Array(p) for p in unfiltered]
             self.pfs_server.set_succeeded(res)
@@ -124,8 +131,11 @@ class PFSNode:
             return
 
     def _stop_pfs_planner(self, msg):
+        # Tells code within this class to stop.
         self._set_stop_value(True)
         rospy.loginfo("PFS action server: PFS node got a stop message")
+
+        # Actually stops planning nodes.
         self.stop_pfs_planner_publisher.publish(msg)
 
 if __name__ == "__main__":

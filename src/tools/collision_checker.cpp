@@ -37,31 +37,21 @@ of its
 
 #include "lightning/collision_checker.h"
 
-CollisionChecker::CollisionChecker(double step_size) {
-  // Progressively set up monitor, create a pointer to it, create a safer
-  // pointer using LockedScene (ls_).
+CollisionChecker::CollisionChecker(double step_size) : step_size_(step_size) {
+  // Create the PlanningSceneMonitor and then set the PlanningScenePtr to be
+  // driven by the Monitor.
   psm_.reset(new planning_scene_monitor::PlanningSceneMonitor("/robot_description"));
-  ROS_INFO("Constructed psm_.");
   ps_ = psm_->getPlanningScene();
-  // Right now, all we really care about is whether there is collision or not;
-  // nothing fancy, so defaults for everything not explicitly constructed should
-  // be fine-ish.
-
-  step_size_ = step_size;
 
   // TODO: allow overriding of default service and topic subscriptions for psm_.
+
   // Get initial planning scene state from /get_planning_scene service.
   psm_->requestPlanningSceneState("/get_planning_scene");
-  ROS_INFO("Request from psm_.");
-  psm_->startSceneMonitor("/planning_scene");//move_group/monitored_planning_scene"); // Default "/planning_scene"
+  // Monitor /planning_scene for any future changes to the scene.
+  psm_->startSceneMonitor("/planning_scene");
 }
 
 CollisionChecker::~CollisionChecker() {}
-
-bool CollisionChecker::collisionModelsInterfaceLoadedModels() {
-  // TODO: Figure out appropriate behavior with MoveIt.
-  return true;//collision_models_interface_->loadedModels();
-}
 
 const planning_scene::PlanningScene &CollisionChecker::getPlanningScene() {
   return *ps_;
@@ -72,14 +62,10 @@ const std::vector<std::string> &CollisionChecker::getJointNames() {
 }
 
 bool CollisionChecker::acquireScene(std::string group_name) {
-  // May need to manually call some sort of lock.
-  //if (!collision_models_interface_->isPlanningSceneSet()) {
-  //  ROS_WARN("Collision checker: Calling with no planning scene set");
-  //  collision_models_interface_->bodiesUnlock();
-  //  return false;
-  //}
   group_name_ = group_name;
+  // Lock scene monitor for reading.
   psm_->lockSceneRead();
+  // Retrieve information about the provided group.
   arm_names_ = ps_->getCurrentState()
                    .getJointModelGroup(group_name)
                    ->getUpdatedLinkModelNames();
@@ -87,12 +73,6 @@ bool CollisionChecker::acquireScene(std::string group_name) {
                      .getJointModelGroup(group_name)
                      ->getActiveJointModelNames();
   num_joints_ = joint_names_.size();
-  ROS_INFO("Group: %s", group_name.c_str());
-  for (int i = 0; i < num_joints_; i++) {
-    ROS_INFO("Joint Name: %s", joint_names_[i].c_str());
-  }
-  //collision_models_interface_->resetToStartState(
-  //    *(collision_models_interface_->getPlanningSceneState()));
   return true;
 }
 
@@ -101,12 +81,6 @@ void CollisionChecker::releaseScene() {
   psm_->unlockSceneRead();
 }
 
-// In old interface, must call acquireScene before checking a path and
-// releaseScene after checking a path. May not need to in new. Do so just to be
-// safe, in case I end up messing around with this stuff.
-
-// if the middle is clear, then store the middle points in new_points
-// if the middle is not clear, then new_points is cleared
 bool CollisionChecker::checkMiddleAndReturnPoints(
     const std::vector<double> &first, const std::vector<double> &second,
     std::vector<std::vector<double> > &new_points) {
@@ -121,17 +95,23 @@ bool CollisionChecker::checkMiddleAndReturnPoints(
   return true;
 }
 
-// Call with a list of joint positions corresponding to what the current
-// joint_names are.
-bool CollisionChecker::isStateValid(const ::std::vector<double> &state) {
-  moveit::core::RobotState robot_state = ps_->getCurrentState();
+bool CollisionChecker::isStateValid(const ::std::vector<double> &state,
+                                    bool clone) {
+  // Perform the copy in case multi-threading is needed.
+  planning_scene::PlanningScenePtr scene =
+      clone ? planning_scene::PlanningScene::clone(ps_) : ps_;
+
+  moveit::core::RobotState robot_state = scene->getCurrentState();
   std::map<std::string, double> pos;
   for (int i = 0; i < num_joints_; i++) {
     pos[joint_names_[i]] = state[i];
     ROS_INFO("Setting %s to %f", joint_names_[i].c_str(), state[i]);
   }
   robot_state.setVariablePositions(pos);
-  ps_->setCurrentState(robot_state);
-  // Not sure if this actually checks for joint limits correctly.
-  return ps_->isStateValid(robot_state, group_name_, true);
+  scene->setCurrentState(robot_state);
+
+  // This checks for self-collision and environment collision. The
+  // isStateValid() method of PlanningScene performs extra checks which we do
+  // not particularly need.
+  return !scene->isStateColliding(robot_state, group_name_, false/*verbose*/);
 }

@@ -6,6 +6,7 @@ project(lightning)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   gazebo_msgs
+  std_msgs
   moveit_planners_ompl
   moveit_ros_planning
   moveit_core
@@ -58,6 +59,8 @@ add_message_files(
   Float64Array.msg
   Status.msg
   DrawPoints.msg
+  Stats.msg
+  RRStats.msg
   Float64Array2D.msg
   IntArray2D.msg
   IntArray.msg
@@ -82,6 +85,7 @@ add_action_files(
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
+  std_msgs
   gazebo_msgs
   actionlib_msgs
   pr2_mechanism_msgs
@@ -99,7 +103,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES lightningros
-  CATKIN_DEPENDS message_runtime gazebo_msgs moveit_planners_ompl moveit_ros_planning pr2_mechanism_msgs roscpp rospy moveit_core moveit_msgs collision_detection planning_scene_monitor
+  CATKIN_DEPENDS message_runtime gazebo_msgs std_msgs moveit_planners_ompl moveit_ros_planning pr2_mechanism_msgs roscpp rospy moveit_core moveit_msgs collision_detection planning_scene_monitor
 #  DEPENDS system_lib
 )
 
