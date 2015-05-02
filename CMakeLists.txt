@@ -133,7 +133,11 @@ add_executable(collision_check_service src/tools/collision_check_service.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(lightningros_node lightningros_generate_messages_cpp)
+add_dependencies(collision_checker_l lightning_gencpp)
+add_dependencies(planner_stoppable_l lightning_gencpp)
+add_dependencies(path_shortcutter lightning_gencpp)
+add_dependencies(planner_stoppable lightning_gencpp)
+add_dependencies(collision_check_service lightning_gencpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(collision_checker_l
