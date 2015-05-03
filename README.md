@@ -14,7 +14,7 @@ LightningROS library uses, so much of the information available on the original
 SourceForge documentation is still relevant, although it should be taken with a
 grain of salt.
 
-Further documentation beyond what is shown here can be found on the wiki
+Further documentation beyond what is shown here can be found on [the wiki](https://github.com/WPI-ARC/lightning_ros/wiki)
 for this github repository.
 
 ##Setup the package
