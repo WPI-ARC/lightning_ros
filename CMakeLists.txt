@@ -5,12 +5,11 @@ project(lightning)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  gazebo_msgs
+  trajectory_msgs
   std_msgs
   moveit_planners_ompl
   moveit_ros_planning
   moveit_core
-  pr2_mechanism_msgs
   roscpp
   rospy
   actionlib_msgs
@@ -86,9 +85,8 @@ add_action_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
-  gazebo_msgs
+  trajectory_msgs
   actionlib_msgs
-  pr2_mechanism_msgs
 )
 
 ###################################
@@ -103,7 +101,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES lightningros
-  CATKIN_DEPENDS message_runtime gazebo_msgs std_msgs moveit_planners_ompl moveit_ros_planning pr2_mechanism_msgs roscpp rospy moveit_core moveit_msgs collision_detection planning_scene_monitor
+  CATKIN_DEPENDS message_runtime trajectory_msgs std_msgs moveit_planners_ompl moveit_ros_planning roscpp rospy moveit_core moveit_msgs collision_detection planning_scene_monitor
 #  DEPENDS system_lib
 )
 
