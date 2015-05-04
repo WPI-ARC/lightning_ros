@@ -407,7 +407,9 @@ class LightningTester:
 if __name__ == "__main__":
     try:
         rospy.init_node("run_test")
-        rospy.sleep(10.0)
+        # Give RViz some time to start up.
+        # If we use ROS time, than it spends forever starting up on slow machines.
+        time.sleep(10.0)
         rospy.loginfo("Lightning test: starting")
         tester = LightningTester()
         rospy.loginfo("Lightning test: waiting for lightning")
